@@ -1,0 +1,180 @@
+{% extends "admin_templates/admin_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="content-wrapper">
+
+  <div class="page-header">
+    <h3 class="page-title">Order Details</h3>
+  </div>
+
+  <div class="row">
+
+    <!-- Customer Details -->
+    <div class="col-md-6 grid-margin stretch-card">
+      <div class="card">
+        <div class="card-body">
+
+          <h4 class="card-title">Customer Details</h4>
+
+          <p><strong>Name:</strong> {{ order.user.username }}</p>
+          <p><strong>Email:</strong> {{ order.user.email }}</p>
+          <p><strong>Phone:</strong> {{ order.user.profile.phone }}</p>
+
+          <p>
+            <strong>Order Status:</strong>
+            <span class="badge badge-gradient-info">
+              {{ order.status }}
+            </span>
+          </p>
+
+          <p><strong>Payment Method:</strong> {{ order.payment_method }}</p>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Shipping Address -->
+    <div class="col-md-6 grid-margin stretch-card">
+      <div class="card">
+        <div class="card-body">
+
+          <h4 class="card-title">Shipping Address</h4>
+
+          <p>{{ order.address.street }}</p>
+          <p>{{ order.address.city }}, {{ order.address.district }}</p>
+          <p>{{ order.address.state }} - {{ order.address.pincode }}</p>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Ordered Products -->
+  <div class="row">
+
+    <div class="col-md-12 grid-margin stretch-card">
+      <div class="card">
+        <div class="card-body">
+
+          <h4 class="card-title">Ordered Products</h4>
+
+          <div class="table-responsive">
+
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Variation</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+
+                {% for item in order.items.all %}
+
+                <tr>
+                  <td>{{ item.product.name }}</td>
+                  <td>{{ item.variation }}</td>
+                  <td>{{ item.quantity }}</td>
+                  <td>₹{{ item.price }}</td>
+                  <td>₹{{ item.price|floatformat:2 }} × {{ item.quantity }}</td>
+
+                  <!-- Current Status -->
+                  <td>
+                    <span class="badge badge-outline-primary">
+                      {{ item.status }}
+                    </span>
+                  </td>
+
+                  <!-- Update Status -->
+                  <td>
+                    <form method="POST" action="{% url 'update_item_status' item.id %}">
+                      {% csrf_token %}
+
+                      <select name="status" class="form-control form-control-sm">
+
+                        <option value="" disabled selected>
+                          Change status
+                        </option>
+
+                        {% for status in item.allowed_status %}
+  <option value="{{ status }}">{{ status }}</option>
+{% endfor %}
+
+                      </select>
+
+                      <button type="submit" class="btn btn-sm btn-primary mt-1">
+                        Update
+                      </button>
+
+                    </form>
+                  </td>
+
+                </tr>
+
+                {% empty %}
+
+                <tr>
+                  <td colspan="7" class="text-center">No products found</td>
+                </tr>
+
+                {% endfor %}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Order Summary -->
+  <div class="row">
+    <div class="col-md-4 offset-md-8 grid-margin stretch-card">
+      <div class="card">
+        <div class="card-body">
+
+          <h4 class="card-title">Order Summary</h4>
+
+          <div class="d-flex justify-content-between">
+            <span>Subtotal</span>
+            <strong>₹{{ order.subtotal }}</strong>
+          </div>
+
+          <div class="d-flex justify-content-between mt-2">
+            <span>Discount</span>
+            <strong>₹{{ order.discount }}</strong>
+          </div>
+
+          <div class="d-flex justify-content-between mt-2">
+            <span>Shipping</span>
+            <strong>₹{{ order.shipping }}</strong>
+          </div>
+
+          <hr>
+
+          <div class="d-flex justify-content-between">
+            <h5>Total</h5>
+            <h5 class="text-primary">₹{{ order.total }}</h5>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

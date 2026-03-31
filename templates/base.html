@@ -1,0 +1,163 @@
+{% load static %}
+<!doctype html>
+<html class="no-js" lang="zxx">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>Unikart | eCommers</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'Doc/css/font-awesome.min.css' %}">
+    <link rel="stylesheet" href="{% static 'assets/css/flaticon.css' %}">
+
+    <style>
+        /* LOGO */
+        .logo a {
+            font-size: 28px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .logo-red {
+            color: red;
+        }
+
+        .logo-black {
+            color: black;
+        }
+
+        /* MESSAGE CONTAINER */
+        #center-toast-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* MESSAGE BOX */
+        .center-toast {
+            position: relative;
+            min-width: 260px;
+            max-width: 320px;
+            padding: 14px 35px 14px 18px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #333;
+            font-size: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            animation: fadeInScale 0.3s ease;
+        }
+
+        /* COLORS */
+        .toast-success {
+            border-left: 5px solid #28a745;
+        }
+
+        .toast-error {
+            border-left: 5px solid #dc3545;
+        }
+
+        .toast-warning {
+            border-left: 5px solid #ffc107;
+        }
+
+        .toast-info {
+            border-left: 5px solid #17a2b8;
+        }
+
+        /* SMALL CLOSE BUTTON */
+        .toast-close {
+            position: absolute;
+            top: 6px;
+            right: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .toast-close:hover {
+            color: #000;
+        }
+
+        /* ANIMATION */
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        
+    </style>
+</head>
+
+<body>
+
+    {% include 'header.html' %}
+
+    <!-- ✅ MESSAGE SYSTEM -->
+    <div id="center-toast-container">
+        {% if messages %}
+        {% for message in messages %}
+        <div class="center-toast 
+        {% if message.tags == 'error' %}toast-error
+        {% elif message.tags == 'success' %}toast-success
+        {% elif message.tags == 'warning' %}toast-warning
+        {% else %}toast-info
+        {% endif %}">
+
+            {{ message }}
+
+            <!-- ✅ SMALL CLOSE BUTTON -->
+            <span class="toast-close" onclick="this.parentElement.remove()">×</span>
+
+        </div>
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    {% include 'footer.html' %}
+
+    <!-- JS FILES -->
+    <script src="{% static 'assets/js/vendor/jquery-1.12.4.min.js' %}"></script>
+    <script src="{% static 'assets/js/bootstrap.min.js' %}"></script>
+
+    <!-- ✅ AUTO CLOSE SCRIPT -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            setTimeout(function () {
+                let msgs = document.querySelectorAll('.center-toast');
+                msgs.forEach(msg => {
+                    msg.style.transition = "opacity 0.5s ease";
+                    msg.style.opacity = "0";
+                    setTimeout(() => msg.remove(), 500);
+                });
+            }, 2500);
+        });
+    </script>
+
+    {% block scripts %}
+    {% endblock %}
+
+</body>
+
+</html>

@@ -1,0 +1,256 @@
+{% extends "admin_templates/admin_dashboard.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="content-wrapper">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <h3 class="page-title">Stock Management</h3>
+  </div>
+
+
+  <!-- Filter Card -->
+  <div class="card mb-4">
+    <div class="card-body">
+
+      <div class="row">
+
+        <!-- Search -->
+        <div class="col-md-4">
+          <input type="text"
+                 id="searchInput"
+                 class="form-control"
+                 placeholder="Search by product name...">
+        </div>
+
+        <!-- Stock Filter -->
+        <div class="col-md-3">
+          <select id="stockFilter" class="form-control">
+            <option value="all">All Stock</option>
+            <option value="low">Low Stock (&lt;5)</option>
+            <option value="zero">Out of Stock</option>
+          </select>
+        </div>
+
+        <!-- Reset Button -->
+        <div class="col-md-2">
+          <button onclick="resetFilters()" class="btn btn-secondary">
+            Reset
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- Stock Table Card -->
+  <div class="card">
+    <div class="card-body">
+
+      <h4 class="card-title">Product Stock List</h4>
+
+      <div class="table-responsive">
+
+        <table class="table table-hover" id="stockTable">
+
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Brand</th>
+              <th>Size</th>
+              <th>Price</th>
+              <th>Stock</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+
+            {% for item in stock_items %}
+
+            <tr data-name="{{ item.product.name|lower }}"
+                data-stock="{{ item.stock }}">
+
+              <td>{{ item.product.name }}</td>
+
+              <td>{{ item.product.brand }}</td>
+
+              <td>{{ item.size }} inch</td>
+
+              <td>₹{{ item.original_price }}</td>
+
+              <td>{{ item.stock }}</td>
+
+              <!-- Status Badge -->
+              <td>
+
+                {% if item.stock == 0 %}
+
+                  <label class="badge badge-danger">
+                    Out of Stock
+                  </label>
+
+                {% elif item.stock < 5 %}
+
+                  <label class="badge badge-warning">
+                    Low Stock
+                  </label>
+
+                {% else %}
+
+                  <label class="badge badge-success">
+                    In Stock
+                  </label>
+
+                {% endif %}
+
+              </td>
+
+
+              <!-- Update Button -->
+              <td>
+
+                <a href="{% url 'edit_product' item.product.id %}"
+   class="btn btn-sm btn-primary">
+   Edit Product
+</a>
+
+              </td>
+
+            </tr>
+
+            {% endfor %}
+
+          </tbody>
+
+        </table>
+        <nav>
+  <ul class="pagination justify-content-center">
+
+    <!-- Previous -->
+    {% if stock_items.has_previous %}
+      <li class="page-item">
+        <a class="page-link"
+           href="?page={{ stock_items.previous_page_number }}&search={{ search }}&filter={{ filter }}">
+           Previous
+        </a>
+      </li>
+    {% else %}
+      <li class="page-item disabled">
+        <span class="page-link">Previous</span>
+      </li>
+    {% endif %}
+
+
+    <!-- Page numbers -->
+    {% for num in stock_items.paginator.page_range %}
+
+      {% if stock_items.number == num %}
+        <li class="page-item active">
+          <span class="page-link">{{ num }}</span>
+        </li>
+
+      {% elif num > stock_items.number|add:'-3' and num < stock_items.number|add:'3' %}
+        <li class="page-item">
+          <a class="page-link"
+             href="?page={{ num }}&search={{ search }}&filter={{ filter }}">
+             {{ num }}
+          </a>
+        </li>
+
+      {% endif %}
+
+    {% endfor %}
+
+
+    <!-- Next -->
+    {% if stock_items.has_next %}
+      <li class="page-item">
+        <a class="page-link"
+           href="?page={{ stock_items.next_page_number }}&search={{ search }}&filter={{ filter }}">
+           Next
+        </a>
+      </li>
+    {% else %}
+      <li class="page-item disabled">
+        <span class="page-link">Next</span>
+      </li>
+    {% endif %}
+
+  </ul>
+</nav>
+
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+
+<!-- JavaScript Filtering -->
+<script>
+
+const searchInput = document.getElementById("searchInput");
+const stockFilter = document.getElementById("stockFilter");
+const rows = document.querySelectorAll("#stockTable tbody tr");
+
+
+searchInput.addEventListener("keyup", filterTable);
+stockFilter.addEventListener("change", filterTable);
+
+
+function filterTable()
+{
+
+    const searchValue = searchInput.value.toLowerCase();
+    const filterValue = stockFilter.value;
+
+    rows.forEach(row =>
+    {
+
+        const name = row.dataset.name;
+        const stock = parseInt(row.dataset.stock);
+
+        let show = true;
+
+        // Search filter
+        if(name.includes(searchValue) === false)
+        {
+            show = false;
+        }
+
+        // Stock filter
+        if(filterValue === "low" && stock >= 5)
+        {
+            show = false;
+        }
+
+        if(filterValue === "zero" && stock != 0)
+        {
+            show = false;
+        }
+
+        row.style.display = show ? "" : "none";
+
+    });
+
+}
+
+
+function resetFilters()
+{
+    searchInput.value = "";
+    stockFilter.value = "all";
+    filterTable();
+}
+
+</script>
+
+
+{% endblock %}

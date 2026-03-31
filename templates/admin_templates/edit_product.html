@@ -1,0 +1,875 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom">
+            <h4 class="mb-0 fw-bold text-dark">Edit Product</h4>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST" enctype="multipart/form-data" id="productForm">
+                {% csrf_token %}
+
+                <!-- ================= PRODUCT INFO ================= -->
+                <div class="row">
+                <div class="col-md-6 mb-4">
+                    <label class="form-label fw-semibold">Product Name</label>
+                    <input type="text" name="name" class="form-control"
+                        value="{{ request.POST.name|default:product.name }}" required>
+                </div>
+
+                <div class="col-md-6 mb-4">
+                    <label class="form-label fw-semibold">Brand</label>
+                    <input type="text" name="brand" class="form-control"
+                        value="{{ request.POST.brand|default:product.brand }}">
+                </div>
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-semibold">Category</label>
+                        <select name="category" class="form-control" required>
+                            <option value="">-- Select Category --</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if product.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-semibold d-block mb-2">Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="status" value="1" {% if product.status %}checked{% endif %}>
+                            <label class="form-check-label ms-2">Active</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12 mb-4">
+                        <label class="form-label fw-semibold">Description</label>
+                        <textarea name="description" rows="4" class="form-control">{{ product.description }}</textarea>
+                    </div>
+                </div>
+
+           <!-- ================= PRODUCT IMAGES ================= -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0 fw-bold">Product Images</h5>
+        <small class="text-muted">Minimum 3 images | Max 2MB each | JPG, PNG, WEBP only</small>
+    </div>
+
+    <div class="card-body">
+        <input type="file"
+               name="product_images[]"
+               id="imageInput"
+               class="form-control"
+               multiple
+               accept="image/jpeg,image/png,image/webp">
+
+        <div id="imageWarning" class="text-danger small mt-2"></div>
+
+        <!-- SAME preview container -->
+        <div class="row mt-4" id="imagePreview"></div>
+
+        <input type="hidden" name="deleted_images" id="deletedImages">
+        <input type="hidden" name="primary_image_id" id="primaryImageId" value="0">
+    </div>
+</div>
+                <!-- ================= VARIATIONS ================= -->
+              <div class="card border-0 shadow-sm mb-4">
+
+    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold">Variations</h5>
+
+        <button type="button"
+                class="btn btn-sm btn-primary"
+                onclick="addVariation()">
+            + Add Variation
+        </button>
+    </div>
+
+    <div class="card-body" id="variation-container">
+
+        {% for variation in product.variation_set.all %}
+
+        <div class="row variation-row mb-3">
+
+            <!-- SIZE -->
+            <div class="col-md-3">
+                <label class="form-label">Size</label>
+
+                <select name="size[]" class="form-control">
+
+                    <option value="32"
+                        {% if variation.size == "32" %}selected{% endif %}>
+                        32 inch
+                    </option>
+
+                    <option value="43"
+                        {% if variation.size == "43" %}selected{% endif %}>
+                        43 inch
+                    </option>
+
+                    <option value="50"
+                        {% if variation.size == "50" %}selected{% endif %}>
+                        50 inch
+                    </option>
+
+                    <option value="60"
+                        {% if variation.size == "60" %}selected{% endif %}>
+                        60 inch
+                    </option>
+
+                </select>
+            </div>
+
+
+            <!-- PRICE -->
+            <div class="col-md-3">
+                <label class="form-label">Original Price</label>
+
+                <input type="text"
+                       name="original_price[]"
+                       class="form-control numeric-input"
+                       value="{{ variation.original_price }}"
+                       required>
+
+                <div class="text-danger small warning-msg"
+                     style="display:none;">
+                     Negative values not allowed
+                </div>
+            </div>
+
+
+            <!-- STOCK -->
+            <div class="col-md-3">
+                <label class="form-label">Stock</label>
+
+                <input type="text"
+                       name="stock[]"
+                       class="form-control numeric-input"
+                       value="{{ variation.stock }}"
+                       required>
+
+                <div class="text-danger small warning-msg"
+                     style="display:none;">
+                     Negative values not allowed
+                </div>
+            </div>
+
+
+            <!-- STATUS -->
+            <div class="col-md-2 d-flex align-items-end">
+
+                <div class="form-check form-switch">
+
+                    <input type="checkbox"
+                           name="variation_status[]"
+                           class="form-check-input"
+                           {% if variation.status %}checked{% endif %}>
+
+                    <label class="form-check-label ms-2">
+                        Active
+                    </label>
+
+                </div>
+
+            </div>
+
+
+            <!-- REMOVE BUTTON -->
+            <div class="col-md-1 d-flex align-items-end">
+
+                <button type="button"
+                        class="btn btn-danger btn-sm"
+                        onclick="this.closest('.variation-row').remove()">
+
+                        Remove
+
+                </button>
+
+            </div>
+
+        </div>
+
+        {% empty %}
+
+        <!-- If no variations exist -->
+        <div class="row variation-row mb-3">
+
+            <div class="col-md-3">
+                <label class="form-label">Size</label>
+                <select name="size[]" class="form-control">
+                    <option value="32">32 inch</option>
+                    <option value="43">43 inch</option>
+                    <option value="50">50 inch</option>
+                    <option value="60">60 inch</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Original Price</label>
+                <input type="text"
+                       name="original_price[]"
+                       class="form-control">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Stock</label>
+                <input type="text"
+                       name="stock[]"
+                       class="form-control">
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+               <!-- ================= HIGHLIGHTS ================= -->
+<div class="card border-0 shadow-sm mb-4">
+
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0 fw-bold">Highlights / Specifications</h5>
+    </div>
+
+    <div class="card-body">
+
+        <!-- Supported Apps -->
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <input type="text"
+                       class="form-control bg-light"
+                       value="Supported Apps"
+                       readonly>
+
+                <input type="hidden"
+                       name="highlight_keys[]"
+                       value="Supported Apps">
+
+            </div>
+
+            <div class="col-md-8">
+
+                <input type="text"
+                       name="highlight_values[]"
+                       class="form-control"
+                       value="{% for h in product.highlights.all %}{% if h.key == 'Supported Apps' %}{{ h.value }}{% endif %}{% endfor %}"
+                       placeholder="e.g. Netflix, YouTube">
+
+            </div>
+
+        </div>
+
+
+        <!-- RAM -->
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <input type="text"
+                       class="form-control bg-light"
+                       value="RAM"
+                       readonly>
+
+                <input type="hidden"
+                       name="highlight_keys[]"
+                       value="RAM">
+
+            </div>
+
+            <div class="col-md-8">
+
+                <input type="text"
+                       name="highlight_values[]"
+                       class="form-control"
+                       value="{% for h in product.highlights.all %}{% if h.key == 'RAM' %}{{ h.value }}{% endif %}{% endfor %}"
+                       placeholder="e.g. 2GB">
+
+            </div>
+
+        </div>
+
+
+        <!-- Storage -->
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <input type="text"
+                       class="form-control bg-light"
+                       value="Storage"
+                       readonly>
+
+                <input type="hidden"
+                       name="highlight_keys[]"
+                       value="Storage">
+
+            </div>
+
+            <div class="col-md-8">
+
+                <input type="text"
+                       name="highlight_values[]"
+                       class="form-control"
+                       value="{% for h in product.highlights.all %}{% if h.key == 'Storage' %}{{ h.value }}{% endif %}{% endfor %}"
+                       placeholder="e.g. 16GB">
+
+            </div>
+
+        </div>
+
+
+        <!-- Display Technology -->
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <input type="text"
+                       class="form-control bg-light"
+                       value="Display Technology"
+                       readonly>
+
+                <input type="hidden"
+                       name="highlight_keys[]"
+                       value="Display Technology">
+
+            </div>
+
+            <div class="col-md-8">
+
+                <input type="text"
+                       name="highlight_values[]"
+                       class="form-control"
+                       value="{% for h in product.highlights.all %}{% if h.key == 'Display Technology' %}{{ h.value }}{% endif %}{% endfor %}"
+                       placeholder="e.g. LED">
+
+            </div>
+
+        </div>
+
+
+        <!-- Processor -->
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <input type="text"
+                       class="form-control bg-light"
+                       value="Processor"
+                       readonly>
+
+                <input type="hidden"
+                       name="highlight_keys[]"
+                       value="Processor">
+
+            </div>
+
+            <div class="col-md-8">
+
+                <input type="text"
+                       name="highlight_values[]"
+                       class="form-control"
+                       value="{% for h in product.highlights.all %}{% if h.key == 'Processor' %}{{ h.value }}{% endif %}{% endfor %}"
+                       placeholder="e.g. Quad Core">
+
+            </div>
+
+        </div>
+
+
+        <!-- Resolution -->
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <input type="text"
+                       class="form-control bg-light"
+                       value="Resolution"
+                       readonly>
+
+                <input type="hidden"
+                       name="highlight_keys[]"
+                       value="Resolution">
+
+            </div>
+
+            <div class="col-md-8">
+
+                <input type="text"
+                       name="highlight_values[]"
+                       class="form-control"
+                       value="{% for h in product.highlights.all %}{% if h.key == 'Resolution' %}{{ h.value }}{% endif %}{% endfor %}"
+                       placeholder="e.g. 3840 x 2160">
+
+            </div>
+
+        </div>
+
+
+        <!-- Sound Output -->
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <input type="text"
+                       class="form-control bg-light"
+                       value="Sound Output"
+                       readonly>
+
+                <input type="hidden"
+                       name="highlight_keys[]"
+                       value="Sound Output">
+
+            </div>
+
+            <div class="col-md-8">
+
+                <input type="text"
+                       name="highlight_values[]"
+                       class="form-control"
+                       value="{% for h in product.highlights.all %}{% if h.key == 'Sound Output' %}{{ h.value }}{% endif %}{% endfor %}"
+                       placeholder="e.g. 20W">
+
+            </div>
+
+        </div>
+
+
+        <!-- Operating System -->
+        <div class="row mb-3">
+
+            <div class="col-md-4">
+
+                <input type="text"
+                       class="form-control bg-light"
+                       value="Operating System"
+                       readonly>
+
+                <input type="hidden"
+                       name="highlight_keys[]"
+                       value="Operating System">
+
+            </div>
+
+            <div class="col-md-8">
+
+                <input type="text"
+                       name="highlight_values[]"
+                       class="form-control"
+                       value="{% for h in product.highlights.all %}{% if h.key == 'Operating System' %}{{ h.value }}{% endif %}{% endfor %}"
+                       placeholder="e.g. Android TV">
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</div>
+                <button type="submit" class="btn btn-success px-4">Update Product</button>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- ================= STYLES ================= -->
+<style>
+/* Hide number input arrows (all browsers) */
+input[type=number].no-arrows::-webkit-inner-spin-button, 
+input[type=number].no-arrows::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number].no-arrows {
+    -moz-appearance: textfield; /* Firefox */
+}    
+.image-card img {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.image-remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+}
+.variation-row {
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+</style>
+```html
+
+{% block scripts %}
+<script>
+
+// ================= ELEMENTS =================
+
+const imageInput = document.getElementById('imageInput');
+const imagePreview = document.getElementById('imagePreview');
+const primaryImageIndex = document.getElementById('primaryImageIndex');
+const warningDiv = document.getElementById('imageWarning');
+const deletedImagesInput = document.getElementById("deletedImages");
+
+
+// ================= CONFIG =================
+
+const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+const maxSizeMB = 2;
+
+
+// ================= DATA HOLDERS =================
+
+const dt = new DataTransfer();
+let deletedImages = [];
+
+
+// ================= EXISTING IMAGES FROM DJANGO =================
+
+const existingImages = [
+    {% for img in product.productimages.all %}
+    {
+        id: "{{ img.id }}",
+        url: "{{ img.product_image.url }}",
+        is_primary: {{ img.is_primary|yesno:"true,false" }}
+    },
+    {% endfor %}
+];
+
+
+// ================= INITIAL LOAD =================
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    renderExistingImages();
+
+});
+
+
+// ================= SHOW EXISTING IMAGES =================
+
+function renderExistingImages() {
+
+    imagePreview.innerHTML = "";
+
+    existingImages.forEach((img, index) => {
+
+        const col = document.createElement("div");
+
+        col.className = "col-md-2 position-relative mb-3 image-box";
+
+        col.dataset.imageId = img.id;
+
+        col.innerHTML = `
+
+            <div class="image-card position-relative">
+
+                <img src="${img.url}" class="img-fluid">
+
+                <button type="button"
+                        class="btn btn-danger btn-sm image-remove-btn"
+                        onclick="markImageForDelete(this)">
+                        ×
+                </button>
+
+                <div class="text-center mt-1">
+
+                    <input type="radio"
+                        name="primary_image"
+                        value="existing_${img.id}"
+                        ${img.is_primary ? "checked" : ""}>
+
+                    <label class="small">Primary</label>
+
+                </div>
+
+            </div>
+
+        `;
+
+        imagePreview.appendChild(col);
+
+    });
+
+}
+
+
+// ================= DELETE EXISTING IMAGE =================
+
+function markImageForDelete(button) {
+
+    const imageBox = button.closest(".image-box");
+
+    const imageId = imageBox.dataset.imageId;
+
+    deletedImages.push(imageId);
+
+    deletedImagesInput.value = deletedImages.join(",");
+
+    imageBox.remove();
+
+}
+
+
+// ================= FILE INPUT CHANGE =================
+
+imageInput.addEventListener('change', function () {
+
+    warningDiv.textContent = "";
+
+    dt.items.clear();
+
+    let validCount = 0;
+
+    for (let file of this.files) {
+
+        if (!allowedTypes.includes(file.type)) {
+
+            warningDiv.textContent =
+                file.name + " not allowed. Only JPG, PNG, WEBP.";
+
+            continue;
+
+        }
+
+        if (file.size > maxSizeMB * 1024 * 1024) {
+
+            warningDiv.textContent =
+                file.name + " exceeds 2MB size limit.";
+
+            continue;
+
+        }
+
+        dt.items.add(file);
+
+        validCount++;
+
+    }
+
+    imageInput.files = dt.files;
+
+    showNewImagePreviews();
+
+    if (validCount > 0 && validCount < 3) {
+
+        warningDiv.textContent =
+            "Minimum 3 images required. Selected: " + validCount;
+
+    }
+
+});
+
+
+// ================= SHOW NEW IMAGE PREVIEW =================
+
+function showNewImagePreviews() {
+
+    Array.from(dt.files).forEach((file, index) => {
+
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+
+            const col = document.createElement("div");
+
+            col.className = "col-md-2 position-relative mb-3 image-box";
+
+            col.innerHTML = `
+
+                <div class="image-card position-relative">
+
+                    <img src="${e.target.result}" class="img-fluid">
+
+                    <button type="button"
+                            class="btn btn-danger btn-sm image-remove-btn"
+                            onclick="removeNewImage(${index})">
+                            ×
+                    </button>
+
+                    <div class="text-center mt-1">
+
+                        <input type="radio"
+                               name="primary_image"
+                               value="new_${index}">
+
+                        <label class="small">Primary</label>
+
+                    </div>
+
+                </div>
+
+            `;
+
+            imagePreview.appendChild(col);
+
+        };
+
+        reader.readAsDataURL(file);
+
+    });
+
+}
+
+// ================= REMOVE NEW IMAGE =================
+
+function removeNewImage(index) {
+
+    dt.items.remove(index);
+
+    imageInput.files = dt.files;
+
+    showNewImagePreviews();
+
+}
+
+
+// ================= SET PRIMARY =================
+
+function setPrimary(index) {
+
+    primaryImageIndex.value = index;
+
+}
+//================ VARIATION ===========
+
+function addVariation() {
+
+    const container =
+        document.getElementById("variation-container");
+
+    const html = `
+
+    <div class="row variation-row mb-3">
+
+        <div class="col-md-3">
+            <label class="form-label">Size</label>
+
+            <select name="size[]" class="form-control">
+
+                <option value="32">32 inch</option>
+
+                <option value="43">43 inch</option>
+
+                <option value="50">50 inch</option>
+
+                <option value="60">60 inch</option>
+
+            </select>
+        </div>
+
+
+        <div class="col-md-3">
+
+            <label class="form-label">Original Price</label>
+
+            <input type="text"
+                   name="original_price[]"
+                   class="form-control numeric-input"
+                   required>
+
+        </div>
+
+
+        <div class="col-md-3">
+
+            <label class="form-label">Stock</label>
+
+            <input type="text"
+                   name="stock[]"
+                   class="form-control numeric-input"
+                   required>
+
+        </div>
+
+
+        <div class="col-md-2 d-flex align-items-end">
+
+            <div class="form-check form-switch">
+
+                <input type="checkbox"
+                       name="variation_status[]"
+                       class="form-check-input"
+                       checked>
+
+                <label class="form-check-label ms-2">
+                    Active
+                </label>
+
+            </div>
+
+        </div>
+
+
+        <div class="col-md-1 d-flex align-items-end">
+
+            <button type="button"
+                    class="btn btn-danger btn-sm"
+                    onclick="removeVariation(this)">
+
+                Remove
+
+            </button>
+
+        </div>
+
+    </div>
+
+    `;
+
+    container.insertAdjacentHTML("beforeend", html);
+
+}
+
+
+// remove variation
+function removeVariation(button) {
+
+    button.closest(".variation-row").remove();
+
+}
+
+
+
+// ================= FORM SUBMIT VALIDATION =================
+
+document.getElementById('productForm').addEventListener('submit', function (e) {
+
+    warningDiv.textContent = "";
+
+    const totalImages =
+        document.querySelectorAll(".image-box").length;
+
+    if (totalImages < 3) {
+
+        e.preventDefault();
+
+        warningDiv.textContent =
+            "Minimum 3 images required.";
+
+        return;
+
+    }
+
+    imageInput.files = dt.files;
+
+});
+
+</script>
+{% endblock %}
+{% endblock %}

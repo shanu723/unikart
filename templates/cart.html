@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<!-- Cart Area -->
+<section class="cart_area section_padding">
+    <div class="container">
+        <h2 class="text-center mb-4">Your Cart</h2>
+
+        <form method="POST" action="{% url 'checkout' %}">
+            {% csrf_token %}
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle text-center">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Select</th>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Remove</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if items %}
+                        {% for item in items %}
+                        <tr data-item-id="{{ item.id }}">
+                            <!-- Checkbox -->
+                            <td> <input type="checkbox" name="selected_items[]" value="{{ item.id }}"> </td>
+
+                            <!-- Product -->
+                            <td class="d-flex align-items-center">
+                                {% with img=item.product.productimages.first %}
+                                <img src="{% if img %}{{ img.product_image.url }}{% else %}{% static 'assets/img/gallery/popular1.png' %}{% endif %}"
+                                    alt="{{ item.product.name }}" width="60" height="60" class="rounded mr-2">
+                                {% endwith %}
+                                <span>{{ item.product.name }}</span>
+                            </td>
+
+                            <!-- Quantity -->
+                            <td style="width: 20%;">
+                                <div class="input-group input-group-sm justify-content-center mx-auto"
+                                    style="width: 120px; max-width: 120px;">
+                                    <div class="input-group-prepend">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm quantity-decrease"
+                                            data-id="{{ item.id }}">−</button>
+                                    </div>
+                                    <input type="number" name="quantity_{{ item.id }}" value="{{ item.quantity }}"
+                                        min="1" class="form-control text-center quantity-input"
+                                        style="width: 50px; min-width: 50px; max-width: 50px;">
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm quantity-increase"
+                                            data-id="{{ item.id }}">+</button>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Price -->
+                            <td style="width: 20%;">
+                                ₹<span class="price-amount">{{ item.line_total }}</span>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-danger btn-sm remove-item"
+                                    data-id="{{ item.id }}">X</button>
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                Your cart is empty.
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if items %}
+            <div class="text-right mt-3">
+                <button type="button" class="btn btn-success btn-lg" onclick="submitSelected()">
+                    Checkout
+                </button>
+
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</section>
+
+
+<!-- Footer -->
+<footer class="footer-area footer-padding">
+    <div class="container text-center">
+        <p class="mb-0">&copy;
+            <script>document.write(new Date().getFullYear());</script> Watch Shop. All rights reserved.
+        </p>
+    </div>
+</footer>
+
+<!-- JS -->
+<script src="{% static 'assets/js/vendor/jquery-1.12.4.min.js' %}"></script>
+<script src="{% static 'assets/js/popper.min.js' %}"></script>
+<script src="{% static 'assets/js/bootstrap.min.js' %}"></script>
+<script src="{% static 'assets/js/owl.carousel.min.js' %}"></script>
+<script src="{% static 'assets/js/slick.min.js' %}"></script>
+<script src="{% static 'assets/js/jquery.nice-select.min.js' %}"></script>
+<script src="{% static 'assets/js/main.js' %}"></script>
+<script>
+    (function () {
+        // Helper: get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                document.cookie.split(';').forEach(c => {
+                    c = c.trim();
+                    if (c.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(c.substring(name.length + 1));
+                    }
+                });
+            }
+            return cookieValue;
+        }
+
+        // Update cart row (quantity & line total)
+        function updateRow(data) {
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+            if (!data || !data.item) return;
+            const row = document.querySelector('tr[data-item-id="' + data.item.id + '"]');
+            if (row) {
+                row.querySelector('.quantity-input').value = data.item.quantity;
+                row.querySelector('.price-amount').textContent = data.item.line_total.toFixed(2);
+            }
+
+            // Optional: if you have a subtotal element
+            const subtotalEl = document.getElementById('cart-subtotal');
+            if (subtotalEl && data.subtotal !== undefined) {
+                subtotalEl.textContent = data.subtotal.toFixed(2);
+            }
+        }
+
+        // Change quantity (increment/decrement)
+        function changeQuantity(itemId, delta) {
+            const input = document.querySelector('tr[data-item-id="' + itemId + '"] .quantity-input');
+            if (!input) return;
+            const newQty = Math.max(1, parseInt(input.value || '1', 10) + delta);
+
+            fetch('{% url "update_cart_item" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ id: itemId, quantity: newQty })
+            })
+                .then(r => r.json())
+                .then(updateRow)
+                .catch(console.error);
+        }
+
+        // Remove row from table
+        function removeRow(itemId) {
+            const row = document.querySelector('tr[data-item-id="' + itemId + '"]');
+            if (row) row.remove();
+        }
+
+        // Remove item from cart
+        function removeItem(itemId) {
+            fetch('/cart/remove/' + itemId + '/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+            })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) removeRow(itemId);
+                })
+                .catch(console.error);
+        }
+
+        // Attach events for quantity buttons
+        document.querySelectorAll('.quantity-decrease').forEach(btn => {
+            btn.addEventListener('click', () => changeQuantity(btn.dataset.id, -1));
+        });
+        document.querySelectorAll('.quantity-increase').forEach(btn => {
+            btn.addEventListener('click', () => changeQuantity(btn.dataset.id, 1));
+        });
+        document.querySelectorAll('.quantity-input').forEach(input => {
+            input.addEventListener('change', () => {
+                const row = input.closest('tr');
+                const id = row.getAttribute('data-item-id');
+                const val = Math.max(1, parseInt(input.value || '1', 10));
+                fetch('{% url "update_cart_item" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({ id: id, quantity: val })
+                })
+                    .then(r => r.json())
+                    .then(updateRow)
+                    .catch(console.error);
+            });
+        });
+
+        // Attach events for remove buttons
+        document.querySelectorAll('.remove-item').forEach(btn => {
+            btn.addEventListener('click', () => removeItem(btn.dataset.id));
+        });
+
+    })();
+    function submitSelected() {
+        const checkboxes = document.querySelectorAll('input[name="selected_items[]"]:checked');
+
+        if (checkboxes.length === 0) {
+            alert("Please select at least one item to checkout.");
+            return;
+        }
+
+        // Create a new form dynamically
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{% url 'checkout' %}";
+
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+
+        // Add selected items
+        checkboxes.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'selected_items[]';
+            input.value = cb.value;
+            form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+</script>
+{% endblock %}

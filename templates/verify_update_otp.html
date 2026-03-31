@@ -1,0 +1,40 @@
+{% extends "login.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow rounded">
+                <div class="card-header bg-success text-white text-center">
+                    <h4>Email Update Verification</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                        {% endfor %}
+
+                        <div class="mb-3">
+                            <p class="text-center">Please enter the OTP sent to your new email address.</p>
+                            <input type="text" name="otp" class="form-control" placeholder="Enter OTP" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100">Verify OTP</button>
+                    </form>
+
+                    <!-- Resend OTP link -->
+                    <div class="text-center mt-3">
+                        <a href="{% url 'resend_update_otp' %}"
+                            style="color: #198754; text-decoration: underline; font-weight: 500;">
+                            Resend OTP
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

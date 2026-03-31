@@ -1,0 +1,86 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+{% load static %}
+{% block content %}
+
+<div class="container mt-4">
+   
+  <h2>Coupon List</h2>
+<a href="{% url 'add_coupon' %}" class="btn btn-primary mb-3">Add Coupon</a>
+
+<table class="table table-bordered table-striped">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Code</th>
+      <th>Type</th>
+      <th>Value</th>
+      <th>Max Discount</th>
+      <th>Status</th>
+      <th>Valid From</th>
+      <th>Valid To</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for coupon in coupons %}
+    <tr>
+      <td>{{ coupon.id }}</td>
+
+      <td><strong>{{ coupon.code }}</strong></td>
+
+      <td>
+        {% if coupon.discount_type == "flat" %}
+          Flat
+        {% else %}
+          Percentage
+        {% endif %}
+      </td>
+
+      <td>
+        {% if coupon.discount_type == "flat" %}
+          ₹{{ coupon.discount_value }}
+        {% else %}
+          {{ coupon.discount_value }}%
+        {% endif %}
+      </td>
+
+      <td>
+        {% if coupon.max_discount_amount %}
+          ₹{{ coupon.max_discount_amount }}
+        {% else %}
+          -
+        {% endif %}
+      </td>
+
+      <td class="text-center">
+  {% if coupon.active %}
+    <span class="badge badge-success">Active</span>
+  {% else %}
+    <span class="badge badge-danger">Inactive</span>
+  {% endif %}
+</td>
+      <td>{{ coupon.valid_from|date:"Y-m-d H:i" }}</td>
+      <td>{{ coupon.valid_to|date:"Y-m-d H:i" }}</td>
+
+      <td>
+        <a href="{% url 'edit_coupon' coupon.id %}" 
+           class="btn btn-sm btn-warning">
+           Edit
+        </a>
+      </td>
+      <td>
+      <a href="{% url 'delete_coupon' coupon.id %}" 
+     class="btn btn-sm btn-danger"
+     onclick="return confirm('Are you sure you want to deactivate this coupon?');">
+     Delete
+  </a></td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="9" class="text-center">No coupons found</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

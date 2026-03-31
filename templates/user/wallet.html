@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container mt-5 mb-5">
+
+<h2>My Wallet</h2>
+
+<div class="card p-3 mb-4">
+<h4>Balance: ₹{{ wallet.balance }}</h4>
+
+<form id="addMoneyForm" method="POST" class="d-flex gap-2 mt-2">
+{% csrf_token %}
+<input type="number" name="amount" id="amount" placeholder="Enter amount" class="form-control" required>
+<button type="submit" class="btn btn-dark">Add Money</button>
+</form>
+</div>
+
+
+<h4>Wallet Transactions</h4>
+
+<!-- FILTER LINKS -->
+
+<div style="margin-bottom:20px;">
+
+<a href="{% url 'wallet' %}"
+style="margin-right:20px; color:black; text-decoration:none;
+font-weight:{% if not selected_type %}bold{% endif %};">
+All Transactions
+</a>
+
+<a href="{% url 'wallet' %}?type=credit"
+style="margin-right:20px; color:green; text-decoration:none;
+font-weight:{% if selected_type == 'credit' %}bold{% endif %};">
+Credit
+</a>
+
+<a href="{% url 'wallet' %}?type=debit"
+style="color:red; text-decoration:none;
+font-weight:{% if selected_type == 'debit' %}bold{% endif %};">
+Debit
+</a>
+
+</div>
+
+
+<!-- TABLE -->
+
+<table class="table table-bordered">
+
+<thead>
+<tr>
+<th>ID</th>
+<th>Amount</th>
+<th>Type</th>
+<th>Date</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for t in page_obj %}
+
+<tr>
+<td>#{{ t.id }}</td>
+<td>₹{{ t.amount }}</td>
+
+<td>
+{% if t.transaction_type == "credit" %}
+<span class="text-success">Credit</span>
+{% else %}
+<span class="text-danger">Debit</span>
+{% endif %}
+</td>
+
+<td>{{ t.created_at|date:"M d, Y H:i" }}</td>
+</tr>
+
+{% empty %}
+
+<tr>
+<td colspan="4" class="text-center">No transactions</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+
+<!-- PAGINATION -->
+
+<nav>
+
+<ul class="pagination">
+
+{% if page_obj.has_previous %}
+
+<li class="page-item">
+<a class="page-link"
+href="?page={{ page_obj.previous_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}">
+Previous
+</a>
+</li>
+
+{% endif %}
+
+
+{% for num in page_obj.paginator.page_range %}
+
+<li class="page-item {% if page_obj.number == num %}active{% endif %}">
+
+<a class="page-link"
+href="?page={{ num }}{% if selected_type %}&type={{ selected_type }}{% endif %}">
+{{ num }}
+</a>
+
+</li>
+
+{% endfor %}
+
+
+{% if page_obj.has_next %}
+
+<li class="page-item">
+<a class="page-link"
+href="?page={{ page_obj.next_page_number }}{% if selected_type %}&type={{ selected_type }}{% endif %}">
+Next
+</a>
+</li>
+
+{% endif %}
+
+</ul>
+
+</nav>
+
+</div>
+
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+
+document.getElementById('addMoneyForm').addEventListener('submit', function(e){
+
+e.preventDefault()
+
+const amount=document.getElementById('amount').value
+
+fetch("{% url 'add_money_to_wallet' %}",{
+
+method:"POST",
+
+headers:{
+"X-CSRFToken":"{{ csrf_token }}",
+"Content-Type":"application/x-www-form-urlencoded"
+},
+
+body:"amount="+amount
+
+})
+
+.then(response=>response.json())
+
+.then(data=>{
+
+const options={
+
+key:data.razorpay_key_id,
+amount:data.amount,
+currency:"INR",
+name:"Wallet Top-up",
+description:"Add money to wallet",
+order_id:data.razorpay_order_id,
+
+handler:function(response){
+
+const formData=new FormData()
+
+formData.append('razorpay_payment_id',response.razorpay_payment_id)
+formData.append('razorpay_order_id',response.razorpay_order_id)
+formData.append('amount',amount)
+
+fetch("{% url 'wallet_payment_success' %}",{
+
+method:"POST",
+body:formData
+
+}).then(()=>{
+
+location.reload()
+
+})
+
+}
+
+}
+
+const rzp=new Razorpay(options)
+rzp.open()
+
+})
+
+})
+
+</script>
+
+{% endblock %}

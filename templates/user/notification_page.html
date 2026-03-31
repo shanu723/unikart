@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h4>Notifications</h4>
+    <ul class="list-group mt-3">
+        {% if notifications %}
+            {% for notif in notifications %}
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                    {{ notif.message }}
+                    <br>
+                    <small class="text-muted">{{ notif.created_at|timesince }} ago</small>
+                </div>
+                {% if not notif.read %}
+                <span class="badge bg-primary rounded-pill">New</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        {% else %}
+            <li class="list-group-item text-center text-muted">
+                No notifications
+            </li>
+        {% endif %}
+    </ul>
+</div>
+{% endblock %}

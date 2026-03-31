@@ -1,0 +1,678 @@
+{% extends 'base.html' %}
+{% load static %}
+
+
+{% block content %}
+<style>
+    /* Parent container for filters and search */
+    .nav-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    /* Simple Heart Icon Style */
+    .simple-heart-icon {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .simple-heart-icon:hover {
+        transform: scale(1.1);
+    }
+
+    .simple-heart-icon .flaticon-heart {
+        font-size: 24px;
+        color: #ccc;
+        /* Default white/grey */
+        text-shadow: 0 0 2px white;
+        /* Make it visible on images */
+        transition: color 0.3s;
+    }
+
+    .simple-heart-icon .flaticon-heart.active {
+        color: #e91e63;
+        /* Red when active */
+    }
+
+    /* Make the search bar align to right end */
+    .nav-tabs form {
+        margin-left: auto;
+        margin-top: 0 !important;
+    }
+
+    /* Style the search input */
+    .nav-tabs .form-control {
+        border-radius: 25px;
+        padding: 6px 14px;
+        border: 1px solid #ccc;
+        width: 220px;
+        transition: all 0.3s ease;
+    }
+
+    .nav-tabs .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 4px rgba(13, 110, 253, 0.3);
+    }
+
+    /* Style for the Clear button */
+    .nav-tabs .btn-clear {
+        background-color: #dc3545;
+        color: #fff;
+        border: 1px solid #dc3545;
+        border-radius: 25px;
+        padding: 18px 18px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+    .nav-tabs .btn-clear:hover {
+        background-color: #b02a37;
+        border-color: #b02a37;
+        color: #fff;
+        box-shadow: 0 0 4px rgba(220, 53, 69, 0.3);
+    }
+
+    /* Added filter sidebar styles */
+    .filter-sidebar {
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+
+    .filter-section {
+        margin-bottom: 25px;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 15px;
+    }
+
+    .filter-section:last-child {
+        border-bottom: none;
+    }
+
+    .filter-section h5 {
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #333;
+        font-size: 14px;
+        text-transform: uppercase;
+    }
+
+    .price-range-slider {
+        margin: 15px 0;
+    }
+
+    .price-range-slider input[type="range"] {
+        width: 100%;
+        margin: 5px 0;
+        cursor: pointer;
+    }
+
+    .price-range-display {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+        font-size: 12px;
+        color: #666;
+    }
+
+    .filter-checkbox {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        cursor: pointer;
+    }
+
+    .filter-checkbox input[type="checkbox"] {
+        margin-right: 8px;
+        cursor: pointer;
+    }
+
+    .filter-checkbox label {
+        cursor: pointer;
+        margin: 0;
+        font-size: 13px;
+    }
+
+    .reset-filter-btn {
+        width: 100%;
+        padding: 8px;
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 15px;
+    }
+
+    .reset-filter-btn:hover {
+        background-color: #b02a37;
+    }
+
+    /* Added rating stars styles */
+    .product-rating {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 8px 0;
+        gap: 5px;
+    }
+
+    .star {
+        color: #ffc107;
+        font-size: 14px;
+    }
+
+    .rating-count {
+        font-size: 12px;
+        color: #666;
+        margin-left: 5px;
+    }
+
+    /* Enhanced wishlist heart styles */
+    .favorit-items {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: white;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        z-index: 10;
+    }
+
+    .favorit-items:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        transform: scale(1.1);
+    }
+
+    .favorit-items .flaticon-heart {
+        font-size: 20px;
+        color: #ccc;
+        transition: color 0.3s ease;
+    }
+
+    .favorit-items .flaticon-heart.active {
+        color: #e91e63;
+    }
+
+    .popular-img {
+        position: relative;
+    }
+
+    /* Mobile responsive filters */
+    @media (max-width: 768px) {
+        .filter-sidebar {
+            margin-bottom: 20px;
+        }
+    }
+</style>
+
+<!-- Hero Area Start-->
+<div class="slider-area ">
+    <div class="single-slider slider-height2 d-flex align-items-center">
+        <div class="container">
+            <div class="row">
+                <div class="col-xl-12">
+                    <div class="hero-cap text-center">
+                        <h2>Unikart</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Hero Area End-->
+
+<!-- Latest Products Start -->
+<section class="popular-items latest-padding">
+    <div class="container">
+        <!-- Changed layout to row with left sidebar filter column -->
+        <div class="row">
+            <!-- Filter Sidebar Column - Left Side -->
+           <div class="col-lg-3">
+  <div class="filter-sidebar">
+    <h4 style="margin-bottom: 20px; font-weight: 700;">Filters</h4>
+
+    <form id="filterForm" method="get">
+
+     
+
+      <!-- Price Range Filter -->
+      <div class="filter-section">
+        <h5>Price Range</h5>
+        <input type="range" id="minPrice" name="min_price" min="20000" max="100000" step="100"
+          value="{{ min_price|default:'20000' }}">
+        <input type="range" id="maxPrice" name="max_price" min="20000" max="100000" step="100"
+          value="{{ max_price|default:'100000' }}">
+
+        <div class="price-range-display mt-2">
+          <span>₹<span id="minPriceLabel">{{ min_price|default:'20000' }}</span></span>
+          <span>₹<span id="maxPriceLabel">{{ max_price|default:'100000' }}</span></span>
+        </div>
+      </div>
+
+      <!-- Category Filter -->
+      <div class="filter-section mt-3">
+        <h5>Category</h5>
+        {% for cat in categories %}
+        <div class="filter-checkbox">
+          <input type="checkbox" name="category" value="{{ cat.id }}"
+            {% if cat.id|stringformat:"s" in selected_categories %} checked {% endif %}>
+          <label>{{ cat.name }}</label>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Brand Filter -->
+      <div class="filter-section mt-3">
+    <h5>Brand</h5>
+    {% for brand in brands %}
+    <div class="filter-checkbox">
+        <!-- Use brand value directly since it's a string -->
+        <input type="checkbox" name="brand" value="{{ brand }}"
+        {% if brand in selected_brands %} checked {% endif %}>
+        <label>{{ brand }}</label>
+    </div>
+    {% endfor %}
+</div>
+ <!-- Apply Button -->
+      <button type="submit" class="btn btn-sm btn-primary mb-3" style="width: 100%;">Apply Filters</button>
+      <!-- Reset Button -->
+      <button type="button" class="btn btn-secondary mt-3" style="width: 100%;"
+        onclick="window.location.href='{{ request.path }}'">
+        Reset All Filters
+      </button>
+
+    </form>
+  </div>
+</div>
+
+
+
+            <!-- Products Column - Right Side (9 columns, leaving 3 for filters) -->
+            <div class="col-lg-9">
+                <!-- Sort and Search Section -->
+                <div class="row product-btn justify-content-between mb-40">
+                    <div class="properties__button">
+                        <!--Nav Button  -->
+                        <nav>
+                            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                                 <a class="nav-item nav-link {% if current_sort == 'newest' %}active{% endif %}"
+                   href="?sort=newest{% for cat in selected_categories %}&category={{ cat }}{% endfor %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% if min_price %}&min_price={{ min_price }}{% endif %}{% if max_price %}&max_price={{ max_price }}{% endif %}{% if query %}&q={{ query }}{% endif %}">
+                   Newest Arrivals
+                </a>
+
+                <a class="nav-item nav-link {% if current_sort == 'low_to_high' %}active{% endif %}"
+                   href="?sort=low_to_high{% for cat in selected_categories %}&category={{ cat }}{% endfor %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% if min_price %}&min_price={{ min_price }}{% endif %}{% if max_price %}&max_price={{ max_price }}{% endif %}{% if query %}&q={{ query }}{% endif %}">
+                   Price Low to High
+                </a>
+
+                <a class="nav-item nav-link {% if current_sort == 'high_to_low' %}active{% endif %}"
+                   href="?sort=high_to_low{% for cat in selected_categories %}&category={{ cat }}{% endfor %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% if min_price %}&min_price={{ min_price }}{% endif %}{% if max_price %}&max_price={{ max_price }}{% endif %}{% if query %}&q={{ query }}{% endif %}">
+                   Price High to Low
+                </a>
+
+                <a class="nav-item nav-link {% if current_sort == 'a_to_z' %}active{% endif %}"
+                   href="?sort=a_to_z{% for cat in selected_categories %}&category={{ cat }}{% endfor %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% if min_price %}&min_price={{ min_price }}{% endif %}{% if max_price %}&max_price={{ max_price }}{% endif %}{% if query %}&q={{ query }}{% endif %}">
+                   Sort by A–Z
+                </a>
+
+                <a class="nav-item nav-link {% if current_sort == 'z_to_a' %}active{% endif %}"
+                   href="?sort=z_to_a{% for cat in selected_categories %}&category={{ cat }}{% endfor %}{% for brand in selected_brands %}&brand={{ brand }}{% endfor %}{% if min_price %}&min_price={{ min_price }}{% endif %}{% if max_price %}&max_price={{ max_price }}{% endif %}{% if query %}&q={{ query }}{% endif %}">
+                   Sort by Z–A
+                </a>
+
+
+                                <!-- 🔍 Search Bar -->
+                                <form method="get" class="mt-3" role="search" style="margin-left: auto;">
+                                    {% if current_sort %}
+                                    <input type="hidden" name="sort" value="{{ current_sort }}">
+                                    {% endif %}
+                                    <input class="form-control rounded-pill shadow-sm" type="search" name="q"
+                                        placeholder="🔍 Search products..." value="{{ request.GET.q|default:'' }}"
+                                        style="max-width: 300px;">
+                                </form>
+                                <a href="{% url 'shop' %}" class="btn btn-clear shadow-sm"
+                                    style="margin-left: 10px;">Clear</a>
+                            </div>
+                        </nav>
+                    </div>
+                </div>
+
+                <!-- Product Grid -->
+                <div class="tab-content" id="nav-tabContent">
+                    <!-- Card one -->
+                    <div class="tab-pane fade show active" id="nav-home" role="tabpanel" aria-labelledby="nav-home-tab">
+                        <div class="row">
+                            {% for product in products %}
+                            <div class="col-xl-4 col-lg-4 col-md-6 col-sm-6">
+                                <!-- Changed back to col-xl-4 to show 3 products per row on desktop -->
+                                <div class="single-popular-items mb-50 text-center">
+                                    <div class="popular-img">
+
+                                {% if product.primary_image_obj %}
+                                    <img src="{{ product.primary_image_obj.0.product_image.url }}"
+                                        alt="{{ product.name }}">
+                                {% else %}
+                                    <p>No image available</p>
+                                {% endif %}
+
+
+
+                                        <a href="{% url 'product' product.id %}">
+                                            <div class="img-cap">
+                                                <span>Shop Now</span>
+                                            </div>
+                                        </a>
+                                        <!-- Enhanced wishlist heart -->
+                                        <div class="simple-heart-icon" onclick="addToWishlist({{ product.id }}, this)">
+                                            <span
+                                                class="flaticon-heart {% if product.id in wishlist_product_ids %}active{% endif %}"
+                                                id="heart-{{ product.id }}"></span>
+                                        </div>
+                                    </div>
+                                    <div class="popular-caption">
+                                        <h3><a href="{% url 'product' product.id %}">{{ product.name|truncatechars:15}}</a></h3>
+
+                                        <!-- Added product rating display -->
+                                        <div class="product-rating">
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star" style="color: #ddd;">★</span>
+                                            <span class="rating-count">(4.0) 128 reviews</span>
+                                        </div>
+
+                                        {% with variation=product.variation_set.first %}
+                                        {% if variation %}
+                                        <div>
+    <strong>
+        
+            ₹{{ variation.original_price }}
+        </span>
+    </strong>
+    <br>
+
+    
+</div>
+                                        {% else %}
+                                        <p>No variations available.</p>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Card two -->
+                    <div class="tab-pane fade" id="nav-profile" role="tabpanel" aria-labelledby="nav-profile-tab">
+                        <div class="row">
+                            {% for product in products %}
+                            <div class="col-xl-4 col-lg-4 col-md-6 col-sm-6">
+                                <!-- Changed back to col-xl-4 to show 3 products per row on desktop -->
+                                <div class="single-popular-items mb-50 text-center">
+                                    <div class="popular-img">
+                                        {% if product.productimages.first %}
+                                        <img src="{{ product.productimages.first.product_image.url }}"
+                                            alt="{{ product.name }}">
+                                        {% else %}
+                                        <p>No image for {{ product.name }}</p>
+                                        {% endif %}
+                                        <a href="{% url 'product' product.id %}">
+                                            <div class="img-cap">
+                                                <span>Add to cart</span>
+                                            </div>
+                                        </a>
+                                        <!-- Enhanced wishlist heart -->
+                                        <div class="simple-heart-icon" onclick="addToWishlist({{ product.id }}, this)">
+                                            <span
+                                                class="flaticon-heart {% if product.id in wishlist_product_ids %}active{% endif %}"
+                                                id="heart-{{ product.id }}"></span>
+                                        </div>
+                                    </div>
+                                    <div class="popular-caption">
+                                        <h3><a href="{% url 'product' product.id %}">{{ product.name }}</a></h3>
+
+                                        <!-- Added product rating display -->
+                                        <div class="product-rating">
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star" style="color: #ddd;">★</span>
+                                            <span class="rating-count">(4.0) 128 reviews</span>
+                                        </div>
+
+                                        {% with variation=product.variation_set.first %}
+                                        {% if variation %}
+                                        <div>
+                                            <strong><del>Original Price:</strong> ₹{{ variation.original_price }}
+                                            <br></del>
+                                            <strong>Selling Price:</strong> ₹{{ variation.selling_price }} <br>
+                                        </div>
+                                        {% else %}
+                                        <p>No variations available.</p>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Card three -->
+                    <div class="tab-pane fade" id="nav-contact" role="tabpanel" aria-labelledby="nav-contact-tab">
+                        <div class="row">
+                            {% for product in products %}
+                            <div class="col-xl-4 col-lg-4 col-md-6 col-sm-6">
+                                <!-- Changed back to col-xl-4 to show 3 products per row on desktop -->
+                                <div class="single-popular-items mb-50 text-center">
+                                    <div class="popular-img">
+                                        {% if product.productimages.first %}
+                                        <img src="{{ product.productimages.first.product_image.url }}"
+                                            alt="{{ product.name }}">
+                                        {% else %}
+                                        <p>No image for {{ product.name }}</p>
+                                        {% endif %}
+                                        <a href="{% url 'product' product.id %}">
+                                            <div class="img-cap">
+                                                <span>Add to cart</span>
+                                            </div>
+                                        </a>
+                                        <!-- Enhanced wishlist heart -->
+                                        <div class="simple-heart-icon" onclick="addToWishlist({{ product.id }}, this)">
+                                            <span
+                                                class="flaticon-heart {% if product.id in wishlist_product_ids %}active{% endif %}"
+                                                id="heart-{{ product.id }}"></span>
+                                        </div>
+                                    </div>
+                                    <div class="popular-caption">
+                                        <h3><a href="{% url 'product' product.id %}">{{ product.name }}</a></h3>
+
+                                        <!-- Added product rating display -->
+                                        <div class="product-rating">
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star">★</span>
+                                            <span class="star" style="color: #ddd;">★</span>
+                                            <span class="rating-count">(4.0) 128 reviews</span>
+                                        </div>
+
+                                        {% with variation=product.variation_set.first %}
+                                        {% if variation %}
+                                       <div>
+    <strong>
+        <span style="text-decoration: line-through; color: #999;">
+            ₹{{ variation.original_price }}
+        </span>
+    </strong>
+    <br>
+
+    <strong>Selling Price:</strong>
+    ₹{{ variation.current_price }} 
+    <br>
+
+    {% if variation.best_discount %}
+        <span style="color: green;">
+            ({{ variation.best_discount }}% OFF)
+        </span>
+    {% endif %}
+</div>
+                                        {% else %}
+                                        <p>No variations available.</p>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pagination -->
+                <div class="row mt-5">
+                    <div class="col-12">
+                        <div class="pagination justify-content-center">
+                            <!-- Previous Button -->
+                            {% if products.has_previous %}
+                            <a href="?page={{ products.previous_page_number }}{% if current_sort %}&sort={{ current_sort }}{% endif %}"
+                                class="btn btn-outline-secondary mr-2">&laquo; Previous</a>
+                            {% else %}
+                            <span class="btn btn-outline-secondary mr-2 disabled">&laquo; Previous</span>
+                            {% endif %}
+
+                            <!-- Page Numbers -->
+                            {% for num in products.paginator.page_range %}
+                            {% if products.number == num %}
+                            <span class="btn btn-primary mr-2">{{ num }}</span>
+                            {% else %}
+                            <a href="?page={{ num }}{% if current_sort %}&sort={{ current_sort }}{% endif %}"
+                                class="btn btn-outline-secondary mr-2">{{ num }}</a>
+                            {% endif %}
+                            {% endfor %}
+
+                            <!-- Next Button -->
+                            {% if products.has_next %}
+                            <a href="?page={{ products.next_page_number }}{% if current_sort %}&sort={{ current_sort }}{% endif %}"
+                                class="btn btn-outline-secondary">Next &raquo;</a>
+                            {% else %}
+                            <span class="btn btn-outline-secondary disabled">Next &raquo;</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Latest Products End -->
+<!--? Shop Method Start-->
+<div class="shop-method-area">
+    <div class="container">
+        <div class="method-wrapper">
+            <div class="row d-flex justify-content-between">
+                <div class="col-xl-4 col-lg-4 col-md-6">
+                    <div class="single-method mb-40">
+                        <i class="ti-package"></i>
+                        <h6>Free Shipping Method</h6>
+                        <p>aorem ixpsacdolor sit ameasecur adipisicing elitsf edasd.</p>
+                    </div>
+                </div>
+                <div class="col-xl-4 col-lg-4 col-md-6">
+                    <div class="single-method mb-40">
+                        <i class="ti-unlock"></i>
+                        <h6>Secure Payment System</h6>
+                        <p>aorem ixpsacdolor sit ameasecur adipisicing elitsf edasd.</p>
+                    </div>
+                </div>
+                <div class="col-xl-4 col-lg-4 col-md-6">
+                    <div class="single-method mb-40">
+                        <i class="ti-reload"></i>
+                        <h6>Secure Payment System</h6>
+                        <p>aorem ixpsacdolor sit ameasecur adipisicing elitsf edasd.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Shop Method End-->
+
+</main>
+
+<!-- Enhanced wishlist and filter functionality scripts -->
+<script>
+    // Wishlist functionality
+    function addToWishlist(productId, element) {
+        fetch(`/add_to_wishlist/${productId}/`, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(response => response.json())
+            .then(data => {
+                const heart = element.querySelector('.flaticon-heart');
+                if (data.status === 'added') {
+                    heart.classList.add('active');
+                    // heart.style.color = '#e91e63'; // Handled by CSS class
+                } else if (data.status === 'removed') {
+                    heart.classList.remove('active');
+                    // heart.style.color = '#ccc'; // Handled by CSS class
+                }
+                if (data.message) {
+                    // Optional: Show toast or small notification
+                    // console.log(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+  // Update price labels dynamically
+  const minPriceInput = document.getElementById('minPrice');
+  const maxPriceInput = document.getElementById('maxPrice');
+  const minPriceLabel = document.getElementById('minPriceLabel');
+  const maxPriceLabel = document.getElementById('maxPriceLabel');
+
+  minPriceInput.addEventListener('input', () => minPriceLabel.textContent = minPriceInput.value);
+  maxPriceInput.addEventListener('input', () => maxPriceLabel.textContent = maxPriceInput.value);
+
+    // Reset filters
+    function resetFilters() {
+        document.getElementById('minPrice').value = 0;
+        document.getElementById('maxPrice').value = 50000;
+        document.getElementById('minPriceLabel').textContent = 0;
+        document.getElementById('maxPriceLabel').textContent = 50000;
+
+        document.querySelectorAll('.filter-checkbox input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+
+        window.location.href = '{% url "shop" %}';
+    }
+
+</script>
+
+{% endblock %}
+<footer>

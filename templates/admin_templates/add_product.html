@@ -1,0 +1,400 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white border-bottom">
+            <h4 class="mb-0 fw-bold text-dark">Add New Product</h4>
+        </div>
+
+        <div class="card-body">
+
+            <form method="POST" enctype="multipart/form-data" id="productForm">
+                {% csrf_token %}
+
+                <!-- ================= PRODUCT INFO ================= -->
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-semibold">Product Name</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-semibold">Brand</label>
+                        <input type="text" name="brand" class="form-control">
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-semibold">Category</label>
+                        <select name="category" class="form-control" required>
+                            <option value="">-- Select Category --</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-semibold d-block mb-2">Status</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="status" value="1" checked>
+                            <label class="form-check-label ms-2">Active</label>
+                        </div>
+                    </div>
+
+                    <div class="col-12 mb-4">
+                        <label class="form-label fw-semibold">Description</label>
+                        <textarea name="description" rows="4" class="form-control"></textarea>
+                    </div>
+                </div>
+
+                <!-- ================= PRODUCT IMAGES ================= -->
+               <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0 fw-bold">Product Images</h5>
+        <small class="text-muted">Minimum 3 images | Max 2MB each | JPG, PNG, WEBP only</small>
+    </div>
+    <div class="card-body">
+        <input type="file"
+               name="product_images[]"
+               id="imageInput"
+               class="form-control"
+               multiple
+               accept="image/jpeg,image/png,image/webp">
+
+        <div id="imageWarning" class="text-danger small mt-2"></div>
+        <div class="row mt-4" id="imagePreview"></div>
+
+        <input type="hidden" name="primary_image_index" id="primaryImageIndex" value="0">
+    </div>
+</div>
+
+                <!-- ================= VARIATIONS ================= -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 fw-bold">Variations</h5>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="addVariation()">
+                            + Add Variation
+                        </button>
+                    </div>
+
+                    <div class="card-body" id="variation-container">
+
+                        <div class="row variation-row">
+                            <div class="col-md-3">
+                                <label class="form-label">Size</label>
+                                <select name="size[]" class="form-control">
+                                    <option value="32">32 inch</option>
+                                    <option value="43">43 inch</option>
+                                    <option value="50">50 inch</option>
+                                    <option value="60">60 inch</option>
+                                    
+                                </select>
+                            </div>
+
+                           <div class="col-md-3">
+                                <label class="form-label">Original Price</label>
+                                <input type="text" name="original_price[]" class="form-control numeric-input" placeholder="Enter price" required>
+                                <div class="text-danger small warning-msg" style="display:none;">Negative values are not allowed</div>
+                            </div>
+
+                            <div class="col-md-3">
+                                <label class="form-label">Stock</label>
+                                <input type="text" name="stock[]" class="form-control numeric-input" placeholder="Enter stock" required>
+                                <div class="text-danger small warning-msg" style="display:none;">Negative values are not allowed</div>
+                            </div>
+
+                            <div class="col-md-2 d-flex align-items-end">
+                                <div class="form-check form-switch">
+                                    <input type="checkbox" name="variation_status[]" class="form-check-input" checked>
+                                    <label class="form-check-label ms-2">Active</label>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+               <!-- ================= HIGHLIGHTS ================= -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0 fw-bold">Highlights / Specifications</h5>
+    </div>
+
+    <div class="card-body">
+        <!-- Field 1 -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control bg-light" value="Supported Apps" readonly>
+                <input type="hidden" name="highlight_keys[]" value="Supported Apps">
+            </div>
+            <div class="col-md-8">
+                <input type="text" name="highlight_values[]" class="form-control" placeholder="e.g. Netflix, YouTube">
+            </div>
+        </div>
+
+        <!-- Field 2 -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control bg-light" value="RAM" readonly>
+                <input type="hidden" name="highlight_keys[]" value="RAM">
+            </div>
+            <div class="col-md-8">
+                <input type="text" name="highlight_values[]" class="form-control" placeholder="e.g. 2GB">
+            </div>
+        </div>
+
+        <!-- Field 3 -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control bg-light" value="Storage" readonly>
+                <input type="hidden" name="highlight_keys[]" value="Storage">
+            </div>
+            <div class="col-md-8">
+                <input type="text" name="highlight_values[]" class="form-control" placeholder="e.g. 16GB">
+            </div>
+        </div>
+
+        <!-- Field 4 -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control bg-light" value="Display Technology" readonly>
+                <input type="hidden" name="highlight_keys[]" value="Display Technology">
+            </div>
+            <div class="col-md-8">
+                <input type="text" name="highlight_values[]" class="form-control" placeholder="e.g. LED">
+            </div>
+        </div>
+
+        <!-- Field 5 -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control bg-light" value="Processor" readonly>
+                <input type="hidden" name="highlight_keys[]" value="Processor">
+            </div>
+            <div class="col-md-8">
+                <input type="text" name="highlight_values[]" class="form-control" placeholder="e.g. Quad Core">
+            </div>
+        </div>
+
+        <!-- Field 6 -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control bg-light" value="Resolution" readonly>
+                <input type="hidden" name="highlight_keys[]" value="Resolution">
+            </div>
+            <div class="col-md-8">
+                <input type="text" name="highlight_values[]" class="form-control" placeholder="e.g. 3840 x 2160">
+            </div>
+        </div>
+
+        <!-- Field 7 -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control bg-light" value="Sound Output" readonly>
+                <input type="hidden" name="highlight_keys[]" value="Sound Output">
+            </div>
+            <div class="col-md-8">
+                <input type="text" name="highlight_values[]" class="form-control" placeholder="e.g. 20W">
+            </div>
+        </div>
+
+        <!-- Field 8 -->
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control bg-light" value="Operating System" readonly>
+                <input type="hidden" name="highlight_keys[]" value="Operating System">
+            </div>
+            <div class="col-md-8">
+                <input type="text" name="highlight_values[]" class="form-control" placeholder="e.g. Android TV">
+            </div>
+        </div>
+    </div>
+</div>
+
+                <button type="submit" class="btn btn-success px-4">Save Product</button>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- ================= STYLES ================= -->
+<style>
+/* Hide number input arrows (all browsers) */
+input[type=number].no-arrows::-webkit-inner-spin-button, 
+input[type=number].no-arrows::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type=number].no-arrows {
+    -moz-appearance: textfield; /* Firefox */
+}    
+.image-card img {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.image-remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+}
+.variation-row {
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+</style>
+{% block scripts %}
+<!-- ================= SCRIPT ================= -->
+<script>
+const imageInput = document.getElementById('imageInput');
+const imagePreview = document.getElementById('imagePreview');
+const primaryImageIndex = document.getElementById('primaryImageIndex');
+const dt = new DataTransfer();
+
+const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+const maxSizeMB = 2;
+const warningDiv = document.getElementById('imageWarning');
+
+imageInput.addEventListener('change', function() {
+    warningDiv.textContent = '';
+    dt.items.clear(); // clear previous valid files
+
+    let validCount = 0; // count of valid files
+
+    for (let file of this.files) {
+        if (!allowedTypes.includes(file.type)) {
+            warningDiv.textContent = `${file.name} is not allowed. Only JPG, PNG, WEBP allowed.`;
+            continue; // skip invalid file
+        }
+
+        if (file.size > maxSizeMB * 1024 * 1024) {
+            warningDiv.textContent = `${file.name} exceeds ${maxSizeMB}MB size limit.`;
+            continue; // skip invalid file
+        }
+
+        dt.items.add(file); // add valid file
+        validCount++;
+    }
+
+    this.files = dt.files; // update input
+    displayImagePreviews();
+
+    // Minimum 3 images warning only if there are **no type/size errors**
+    if (validCount < 3 && validCount > 0) {
+        warningDiv.textContent = `Please upload at least 3 images. Currently selected: ${validCount}`;
+    }
+});
+// Display Image Previews
+function displayImagePreviews() {
+    imagePreview.innerHTML = '';
+    Array.from(dt.files).forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const col = document.createElement('div');
+            col.className = 'col-md-2 position-relative mb-3';
+            col.innerHTML = `
+                <div class="image-card position-relative">
+                    <img src="${e.target.result}" class="img-fluid border">
+                    <button type="button" class="btn btn-danger btn-sm image-remove-btn" onclick="removeImage(${index})">×</button>
+                    <div class="text-center mt-2">
+                        <div class="form-check d-inline-block">
+                            <input type="radio" name="primary_image" value="${index}" ${index === 0 ? 'checked' : ''} onclick="setPrimary(${index})">
+                            <label class="form-check-label small">Primary</label>
+                        </div>
+                    </div>
+                </div>
+            `;
+            imagePreview.appendChild(col);
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// Remove Image
+function removeImage(index) {
+    dt.items.remove(index);
+    imageInput.files = dt.files;
+    displayImagePreviews();
+}
+
+// Set Primary Image
+function setPrimary(index) {
+    primaryImageIndex.value = index;
+}
+
+// ===== Variations =====
+function addVariation() {
+    const container = document.getElementById('variation-container');
+    container.insertAdjacentHTML('beforeend', `
+        <div class="row variation-row mb-3">
+            <div class="col-md-3">
+                <label class="form-label">Size</label>
+                <select name="size[]" class="form-control">
+                    <option value="">Select Size</option>
+                    <option value="32">32 inch</option>
+                    <option value="43">43 inch</option>
+                    <option value="50">50 inch</option>
+                    <option value="60">60 inch</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Original Price</label>
+                <input type="text" name="original_price[]" class="form-control numeric-input">
+                <div class="text-danger small warning-msg" style="display:none;">Negative values not allowed</div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Stock</label>
+                <input type="text" name="stock[]" class="form-control numeric-input">
+                <div class="text-danger small warning-msg" style="display:none;">Negative values not allowed</div>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.variation-row').remove()">Remove</button>
+            </div>
+        </div>
+    `);
+    bindNumericWarnings();
+}
+
+// ===== Numeric Input Warnings =====
+function bindNumericWarnings() {
+    document.querySelectorAll('.numeric-input').forEach(input => {
+        const warning = input.nextElementSibling;
+        input.addEventListener('input', function() {
+            if (this.value.startsWith('-')) {
+                warning.style.display = 'block';
+                this.value = this.value.replace(/-/g,'');
+            } else {
+                warning.style.display = 'none';
+            }
+        });
+    });
+}
+bindNumericWarnings();
+
+// ===== Form Submission =====
+document.getElementById('addProductForm').addEventListener('submit', function(e) {
+    warningDiv.textContent = '';
+
+    if (dt.files.length < 3) {
+        e.preventDefault();
+        warningDiv.textContent = 'Please upload at least 3 images.';
+        return;
+    }
+
+    imageInput.files = dt.files;
+});
+</script>
+{% endblock %}
+{% endblock %}

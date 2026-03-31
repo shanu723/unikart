@@ -1,0 +1,456 @@
+{% extends 'base.html' %}
+{% load static %}
+<!-- Django messages -->
+  
+<style>
+
+/* =========================
+   FIX BUTTON LAYER
+========================= */
+.btn {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* =========================
+   FIX CONTAINER OVERFLOW
+========================= */
+.container,
+.row,
+.col-md-4,
+.col-md-8 {
+    overflow: visible !important;
+}
+
+/* =========================
+   HEADER ALWAYS ON TOP
+========================= */
+.header-area,
+.main-header,
+.main-menu {
+    position: relative !important;
+    z-index: 9999 !important;
+}
+
+/* =========================
+   DROPDOWN (SUBMENU FIX)
+========================= */
+.main-menu ul li {
+    position: relative;
+}
+
+.main-menu ul li .submenu,
+.header-right .user-menu .submenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 10000 !important;
+    background: #fff;
+    min-width: 180px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+/* =========================
+   USER MENU RIGHT SIDE
+========================= */
+.header-right .user-menu {
+    position: relative;
+    z-index: 9999;
+}
+
+/* =========================
+   FIX MODAL STACK ISSUE (REAL FIX)
+========================= */
+.modal-dialog {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* =========================
+   PREVENT HORIZONTAL SCROLL
+========================= */
+body {
+    overflow-x: hidden;
+}
+
+</style>
+{% block content %}
+<div class="container py-4">
+  
+
+  <div class="row">
+    <!-- LEFT SIDE: PROFILE INFO -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 p-3 text-center">
+        {% if user.profile.profile_photo %}
+         <img src="{{ user.profile.profile_photo.url }}"class="rounded-circle mb-3 mx-auto d-block"alt="Profile Photo"width="160" height="100">
+        {% else %}
+          <img src="{{ MEDIA_URL }}profile_photos/default.jpg" class="rounded-circle mb-3 mx-auto d-block" alt="Profile Photo" width="160" height="100">
+        {% endif %}
+
+        <h5 class="mb-1">{{ user.username }}</h5>
+        <p class="text-muted mb-2">{{ user.email }}</p>
+        <p class="text-muted mb-3">📞 {{ user.profile.phone|default:"Not Provided" }}</p>
+
+        <div class="d-flex justify-content-center gap-2">
+          <a href="#" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">Edit Profile</a>
+          <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#changePhotoModal">Change Photo</a>
+        </div>
+      <hr>
+
+<h6 class="mt-2">Invite Friends 🎁</h6>
+
+<p style="font-size:14px;">Share this link and earn rewards!</p>
+
+<a 
+href="https://wa.me/?text=Join%20Unikart%20using%20my%20referral%20link:%0A{{ request.scheme }}://{{ request.get_host }}/signup/?ref={{ user.profile.referral_code }}"
+target="_blank">
+
+<i class="bi bi-whatsapp" style="font-size:28px; color:#25D366;"></i>
+
+</a>
+      </div>
+      
+    </div>
+
+    <!-- RIGHT SIDE: ADDRESSES -->
+     
+    <div class="col-md-8">
+      <div class="card shadow-sm border-0 p-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Saved Addresses</h5>
+          <a href="#" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAddressModal">+ Add Address</a>
+        </div>
+
+        {% if addresses %}
+          {% for address in addresses %}
+            <div class="border rounded p-3 mb-3 {% if address.is_default %}border-success{% endif %}">
+              <h6 class="mb-1">{{ address.street }}, {{ address.city }}</h6>
+              <p class="mb-1">{{ address.district }}, {{ address.state }} - {{ address.pincode }}</p>
+              {% if address.is_default %}<span class="badge bg-success">Default</span>{% endif %}
+              <div class="mt-2">
+                <a href="#" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editAddressModal{{ address.id }}">Edit</a>
+                <a href="{% url 'remove_address' address.id %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                {% if not address.is_default %}
+                  <a href="{% url 'set_default_address' address.id %}" class="btn btn-sm btn-outline-success">Set as Default</a>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- Edit Address Modal -->
+            <div class="modal fade" id="editAddressModal{{ address.id }}" tabindex="-1">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <form method="POST" action="{% url 'edit_address' address.id %}">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                      <h5 class="modal-title">Edit Address</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                      <div class="mb-2"><label>Street</label><input type="text" name="street" value="{{ address.street }}" class="form-control" required></div>
+                      <div class="mb-2"><label>City</label><input type="text" name="city" value="{{ address.city }}" class="form-control" required></div>
+                      <div class="mb-2"><label>District</label><input type="text" name="district" value="{{ address.district }}" class="form-control" required></div>
+                      <div class="mb-2"><label>State</label><input type="text" name="state" value="{{ address.state }}" class="form-control" required></div>
+                      <div class="mb-2"><label>Pincode</label><input type="text" name="pincode" value="{{ address.pincode }}" class="form-control" required></div>
+                      <div class="form-check"><input type="checkbox" name="is_default" class="form-check-input" {% if address.is_default %}checked{% endif %}><label class="form-check-label">Set as Default</label></div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="submit" class="btn btn-primary">Save Changes</button>
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+          {% endfor %}
+        {% else %}
+          <p class="text-muted">No addresses saved yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Address Modal -->
+<div class="modal fade" id="addAddressModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{% url 'add_address' %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Add Address</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+  <label>Street</label>
+  <input type="text" name="street" class="form-control" required>
+  <small class="text-danger" id="streetError"></small>
+</div>
+
+<div class="mb-2">
+  <label>City</label>
+  <input type="text" name="city" class="form-control" required>
+  <small class="text-danger" id="cityError"></small>
+</div>
+
+<div class="mb-2">
+  <label>District</label>
+  <input type="text" name="district" class="form-control" required>
+  <small class="text-danger" id="districtError"></small>
+</div>
+
+<div class="mb-2">
+  <label>State</label>
+  <input type="text" name="state" class="form-control" required>
+  <small class="text-danger" id="stateError"></small>
+</div>
+
+<div class="mb-2">
+  <label>Pincode</label>
+  <input type="text" name="pincode" class="form-control" required>
+  <small class="text-danger" id="pincodeError"></small>
+</div>
+          <div class="form-check"><input type="checkbox" name="is_default" class="form-check-input"><label class="form-check-label">Set as Default</label></div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Save</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Profile Modal -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{% url 'update_profile' %}" id="editProfileForm">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Profile</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="mb-2">
+            <label>User Name</label>
+            <input type="text" name="username" value="{{ user.username }}" class="form-control">
+            <small id="usernameError" class="text-danger"></small>
+          </div>
+
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            {% if is_google_user %}
+              <input type="email" id="email" value="{{ user.email }}" class="form-control" disabled style="background-color:#e9ecef; cursor:not-allowed;">
+              <input type="hidden" name="email" value="{{ user.email }}">
+              <p class="text-danger mt-1 mb-0" style="font-size:14px;">Email is linked with Google login and cannot be changed.</p>
+            {% else %}
+              <input type="email" name="email" id="email" value="{{ user.email }}" class="form-control">
+              <small id="emailError" class="text-danger"></small>
+              <div class="mt-2"><a href="#" id="sendOtpLink" class="text-primary text-decoration-none fw-bold" style="font-size:14px;">Send OTP</a></div>
+            {% endif %}
+          </div>
+
+          <div class="mb-2">
+            <label>Phone</label>
+            <input type="text" name="phone" value="{{ user.profile.phone }}" class="form-control">
+            <small id="phoneError" class="text-danger"></small>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Change Photo Modal -->
+<div class="modal fade" id="changePhotoModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" enctype="multipart/form-data" action="{% url 'update_profile' %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Change Profile Photo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="file" name="profile_photo" accept="image/*" class="form-control" required>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success">Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    /* =========================
+       ✅ PROFILE VALIDATION
+    ========================= */
+
+    const username = document.querySelector('[name="username"]');
+    const email = document.querySelector('[name="email"]');
+    const phone = document.querySelector('[name="phone"]');
+
+    const usernameError = document.getElementById("usernameError");
+    const emailError = document.getElementById("emailError");
+    const phoneError = document.getElementById("phoneError");
+
+    const usernamePattern = /^[A-Za-z0-9_]{3,20}$/;
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phonePattern = /^[6-9]\d{9}$/;
+
+    if (username) {
+        username.addEventListener("input", function () {
+            if (!usernamePattern.test(username.value.trim())) {
+                usernameError.textContent = "3-20 chars, letters/numbers/_ only";
+                username.classList.add("is-invalid");
+            } else {
+                usernameError.textContent = "";
+                username.classList.remove("is-invalid");
+            }
+        });
+    }
+
+    if (email && !email.disabled) {
+        email.addEventListener("input", function () {
+            if (!emailPattern.test(email.value.trim())) {
+                emailError.textContent = "Enter valid email";
+                email.classList.add("is-invalid");
+            } else {
+                emailError.textContent = "";
+                email.classList.remove("is-invalid");
+            }
+        });
+    }
+
+    if (phone) {
+    phone.addEventListener("input", function () {
+
+        const value = phone.value.trim();
+
+        // ❌ Empty
+        if (value === "") {
+            phoneError.textContent = "";
+            phone.classList.remove("is-invalid");
+            return;
+        }
+
+        // 🚨 Check ONLY digits
+        if (!/^\d+$/.test(value)) {
+            phoneError.textContent = "Only numbers allowed";
+            phone.classList.add("is-invalid");
+        }
+
+        // 🚨 Check length first
+        else if (value.length !== 10) {
+            phoneError.textContent = "Enter exactly 10 digits";
+            phone.classList.add("is-invalid");
+        }
+
+        // 🚨 Block fake numbers (0000000000, 1111111111)
+        else if (/^(\d)\1{9}$/.test(value)) {
+            phoneError.textContent = "Invalid phone number";
+            phone.classList.add("is-invalid");
+        }
+
+        // 🚨 Indian number rule (starts 6–9)
+        else if (!/^[6-9]/.test(value)) {
+            phoneError.textContent = "Must start with 6–9";
+            phone.classList.add("is-invalid");
+        }
+
+        // ✅ Valid
+        else {
+            phoneError.textContent = "";
+            phone.classList.remove("is-invalid");
+        }
+    });
+}
+
+    /* =========================
+       ✅ ADDRESS VALIDATION
+    ========================= */
+
+   document.addEventListener("DOMContentLoaded", function () {
+
+    const addressForm = document.querySelector("#addAddressModal form");
+
+    if (!addressForm) return;
+
+    const street = addressForm.querySelector('[name="street"]');
+    const city = addressForm.querySelector('[name="city"]');
+    const district = addressForm.querySelector('[name="district"]');
+    const state = addressForm.querySelector('[name="state"]');
+    const pincode = addressForm.querySelector('[name="pincode"]');
+
+    const streetError = document.getElementById("streetError");
+    const cityError = document.getElementById("cityError");
+    const districtError = document.getElementById("districtError");
+    const stateError = document.getElementById("stateError");
+    const pincodeError = document.getElementById("pincodeError");
+
+    const streetRegex = /^[A-Za-z\s,.\-/#]{5,}$/;
+    const nameRegex = /^[A-Za-z\s]+$/;
+    const pincodeRegex = /^\d{6}$/;
+
+    street.addEventListener("input", function () {
+        if (!streetRegex.test(street.value.trim())) {
+            streetError.textContent = "Min 5 characters";
+        } else {
+            streetError.textContent = "";
+        }
+    });
+
+    city.addEventListener("input", function () {
+        if (!nameRegex.test(city.value.trim())) {
+            cityError.textContent = "Letters only";
+        } else {
+            cityError.textContent = "";
+        }
+    });
+
+    district.addEventListener("input", function () {
+        if (!nameRegex.test(district.value.trim())) {
+            districtError.textContent = "Letters only";
+        } else {
+            districtError.textContent = "";
+        }
+    });
+
+    state.addEventListener("input", function () {
+        if (!nameRegex.test(state.value.trim())) {
+            stateError.textContent = "Letters only";
+        } else {
+            stateError.textContent = "";
+        }
+    });
+
+    pincode.addEventListener("input", function () {
+        if (!pincodeRegex.test(pincode.value.trim())) {
+            pincodeError.textContent = "6 digit pincode";
+        } else {
+            pincodeError.textContent = "";
+        }
+    });
+
+});
+
+});
+</script>
+
+{% endblock %}

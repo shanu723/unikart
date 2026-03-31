@@ -1,0 +1,181 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="main-panel">
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h3 class="page-title">
+        <span class="page-title-icon bg-gradient-primary text-white me-2">
+          <i class="mdi mdi-chart-line"></i>
+        </span>
+        Sales Report
+      </h3>
+      <nav aria-label="breadcrumb">
+        <ul class="breadcrumb">
+          <li class="breadcrumb-item active" aria-current="page">
+            <span></span> Generate and Download Reports
+            <i class="mdi mdi-alert-circle-outline icon-sm text-primary align-middle"></i>
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="row">
+      <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+          <div class="card-body">
+            <div class="row mb-4">
+
+  <div class="col-md-4">
+    <div class="card bg-gradient-success text-white p-3">
+      <h5>Total Revenue</h5>
+      <h3>₹{{ total_revenue }}</h3>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card bg-gradient-info text-white p-3">
+      <h5>Total Orders</h5>
+      <h3>{{ total_orders }}</h3>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card bg-gradient-danger text-white p-3">
+      <h5>Total Discount</h5>
+      <h3>₹{{ total_discount }}</h3>
+    </div>
+  </div>
+  
+
+</div>
+<div class="card mb-4">
+  <div class="card-body">
+    <h4 class="card-title">Sales Trend</h4>
+    <canvas id="salesChart" height="100"></canvas>
+  </div>
+</div>
+
+            <h4 class="card-title mb-4">Filter Sales Data</h4>
+
+            <!-- Filter Form -->
+            <form method="GET" class="row g-3 align-items-end mb-4">
+              <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date|date:'Y-m-d' }}">
+              </div>
+
+              <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date|date:'Y-m-d' }}">
+              </div>
+
+              <div class="col-md-3">
+                <label for="filter_type" class="form-label">Filter By</label>
+                <select id="filter_type" name="filter_type" class="form-select">
+                  <option value="">Custom Range</option>
+                  <option value="daily" {% if filter_type == 'daily' %}selected{% endif %}>Today</option>
+                  <option value="weekly" {% if filter_type == 'weekly' %}selected{% endif %}>This Week</option>
+                  <option value="monthly" {% if filter_type == 'monthly' %}selected{% endif %}>This Month</option>
+                </select>
+              </div>
+
+              <div class="col-md-3">
+                <button type="submit" class="btn btn-gradient-primary w-100">Generate Report</button>
+              </div>
+            </form>
+
+            <!-- Table Section -->
+            <div class="table-responsive mt-4">
+              <table class="table table-striped">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>User</th>
+                    <th>Subtotal</th>
+                    <th>Discount</th>
+                    <th>Coupon</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for order in orders %}
+                  <tr>
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.created_at|date:"d M Y" }}</td>
+                    <td>{{ order.user.username }}</td>
+                    <td>₹{{ order.subtotal }}</td>
+                    <td>₹{{ order.discount }}</td>
+                    <td>₹{{ order.coupon_discount|default:0 }}</td>
+                    <td><strong>₹{{ order.total }}</strong></td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center text-muted">No orders found for the selected range.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Download Buttons -->
+            {% if orders %}
+            <div class="mt-4 text-end">
+              <a href="{% url 'download_sales_pdf' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&filter_type={{ filter_type }}"
+                class="btn btn-danger me-2">
+                <i class="mdi mdi-file-pdf"></i> Download PDF
+              </a>
+              <a href="{% url 'download_sales_excel' %}?start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&filter_type={{ filter_type }}"
+                class="btn btn-success">
+                <i class="mdi mdi-file-excel"></i> Download Excel
+              </a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  const labels = {{ chart_dates|safe }};
+  const data = {{ chart_revenues|safe }};
+
+  const ctx = document.getElementById('salesChart').getContext('2d');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Revenue (₹)',
+        data: data,
+        borderWidth: 2,
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: true
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+</script>
+
+{% endblock %}

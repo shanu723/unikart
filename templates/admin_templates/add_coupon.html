@@ -1,0 +1,182 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block content %}
+<div class="content-wrapper">
+  <div class="row justify-content-center">
+    <div class="col-md-8 grid-margin stretch-card">
+      <div class="card">
+        <div class="card-body">
+
+          <h4 class="card-title text-center">Add Coupon</h4>
+
+          <form method="POST" novalidate>
+            {% csrf_token %}
+
+            <!-- 🔴 Form-level errors -->
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                  {{ error }}
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <!-- Coupon Code -->
+            <div class="form-group">
+              <label>Coupon Code</label>
+
+              {% if form.code.errors %}
+                {{ form.code|add_class:"form-control is-invalid" }}
+              {% else %}
+                {{ form.code|add_class:"form-control" }}
+              {% endif %}
+
+              {% if form.code.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.code.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Discount Type -->
+            <div class="form-group mt-3">
+              <label>Discount Type</label>
+
+              {% if form.discount_type.errors %}
+                {{ form.discount_type|add_class:"form-control is-invalid" }}
+              {% else %}
+                {{ form.discount_type|add_class:"form-control" }}
+              {% endif %}
+
+              {% if form.discount_type.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.discount_type.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Discount Value -->
+            <div class="form-group mt-3">
+              <label>Discount Value</label>
+
+              {% if form.discount_value.errors %}
+                {{ form.discount_value|add_class:"form-control is-invalid" }}
+              {% else %}
+                {{ form.discount_value|add_class:"form-control" }}
+              {% endif %}
+
+              {% if form.discount_value.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.discount_value.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Max Discount -->
+            <div class="form-group mt-3">
+              <label>Max Discount Amount</label>
+
+              {% if form.max_discount_amount.errors %}
+                {{ form.max_discount_amount|add_class:"form-control is-invalid" }}
+              {% else %}
+                {{ form.max_discount_amount|add_class:"form-control" }}
+              {% endif %}
+
+              {% if form.max_discount_amount.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.max_discount_amount.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Min Purchase -->
+            <div class="form-group mt-3">
+              <label>Minimum Purchase Amount</label>
+
+              {% if form.min_purchase_amount.errors %}
+                {{ form.min_purchase_amount|add_class:"form-control is-invalid" }}
+              {% else %}
+                {{ form.min_purchase_amount|add_class:"form-control" }}
+              {% endif %}
+
+              {% if form.min_purchase_amount.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.min_purchase_amount.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Valid From -->
+            <div class="form-group mt-3">
+              <label>Valid From</label>
+
+              {% if form.valid_from.errors %}
+                {{ form.valid_from|add_class:"form-control is-invalid" }}
+              {% else %}
+                {{ form.valid_from|add_class:"form-control" }}
+              {% endif %}
+
+              {% if form.valid_from.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.valid_from.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Valid To -->
+            <div class="form-group mt-3">
+              <label>Valid To</label>
+
+              {% if form.valid_to.errors %}
+                {{ form.valid_to|add_class:"form-control is-invalid" }}
+              {% else %}
+                {{ form.valid_to|add_class:"form-control" }}
+              {% endif %}
+
+              {% if form.valid_to.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.valid_to.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+
+            <!-- Active -->
+            <div class="form-check mt-3">
+              {{ form.active }}
+              <label class="form-check-label ms-2">Active</label>
+            </div>
+
+            <!-- Buttons -->
+            <div class="text-center mt-4">
+              <button type="submit" class="btn btn-gradient-primary me-2">
+                Add Coupon
+              </button>
+              <a href="{% url 'admin_dashboard' %}" class="btn btn-light">
+                Cancel
+              </a>
+            </div>
+
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

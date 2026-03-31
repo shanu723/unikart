@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Buy Now</h2>
+    <p>You are buying: <strong>{{ product.name }}</strong></p>
+    <p>Price: ₹{{ product.price }}</p>
+    <a href="{% url 'checkout' product.id %}" class="btn btn-success">Proceed to Checkout</a>
+</div>
+{% endblock %}

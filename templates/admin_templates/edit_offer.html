@@ -1,0 +1,207 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="page-header">
+        <h3 class="page-title"> Edit Offer </h3>
+    </div>
+    <div class="row">
+        <div class="col-12 grid-margin stretch-card">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Offer Details</h4>
+                    
+<form class="forms-sample" method="post" id="editOfferForm">
+    {% csrf_token %}
+
+    <!-- 1️⃣ OFFER TYPE FIRST -->
+    <div class="form-group">
+        <label for="id_offer_type">Offer Type</label>
+        <select class="form-control" id="id_offer_type" name="offer_type" required>
+            <option value="">Select Offer Type</option>
+            <option value="category" {% if offer.offer_type == 'category' %}selected{% endif %}>Category Offer</option>
+            <option value="product" {% if offer.offer_type == 'product' %}selected{% endif %}>Product Offer</option>
+        </select>
+    </div>
+
+    <!-- 2️⃣ OFFER TITLE -->
+    <div class="form-group">
+        <label for="id_title">Offer Title</label>
+        <input type="text" class="form-control" id="id_title" name="title"
+               value="{{ offer.title }}" placeholder="e.g., Summer Sale, 10% Off TVs" required>
+    </div>
+
+    <!-- CATEGORY FIELD -->
+    <div class="form-group" id="category_field" style="display: none;">
+        <label for="id_category">Category</label>
+        <select class="form-control" id="id_category" name="category">
+            <option value="">Select Category</option>
+            {% for category in categories %}
+                <option value="{{ category.pk }}"
+                  {% if offer.category and offer.category.pk == category.pk %}selected{% endif %}>
+                  {{ category.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- PRODUCT FIELD -->
+    <div class="form-group" id="product_field" style="display: none;">
+        <label for="id_product">Product</label>
+        <select class="form-control" id="id_product" name="product">
+            <option value="">Select Product</option>
+            {% for product in products %}
+                <option value="{{ product.pk }}"
+                  {% if offer.product and offer.product.pk == product.pk %}selected{% endif %}>
+                  {{ product.name }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- DISCOUNT TYPE -->
+    <div class="form-group">
+        <label for="id_discount_type">Discount Type</label>
+        <select class="form-control" id="id_discount_type" name="discount_type" required>
+            <option value="">Select Discount Type</option>
+            <option value="percentage" {% if offer.discount_type == 'percentage' %}selected{% endif %}>Percentage</option>
+            <option value="flat" {% if offer.discount_type == 'flat' %}selected{% endif %}>Flat</option>
+        </select>
+    </div>
+
+    <!-- DISCOUNT VALUE -->
+    <div class="form-group">
+        <label for="id_dis_value">Discount Value</label>
+        <input type="number" class="form-control" id="id_dis_value" name="dis_value"
+               value="{{ offer.dis_value }}" min="0" required>
+        <small id="discountError" style="color:red; display:none;"></small>
+    </div>
+
+    <!-- IS ACTIVE -->
+    <div class="form-group">
+        <div class="form-check">
+            <label class="form-check-label">
+                <input type="checkbox" class="form-check-input" id="id_is_active" name="is_active"
+                       {% if offer.is_active %}checked{% endif %}>
+                Is Active
+            </label>
+        </div>
+    </div>
+
+    <!-- VALID DATES -->
+    <div class="form-group">
+        <label for="id_valid_from">Valid From</label>
+        <input type="datetime-local" class="form-control" id="id_valid_from" name="valid_from"
+               value="{{ offer.valid_from|date:'Y-m-d\TH:i' }}" required>
+    </div>
+
+    <div class="form-group">
+        <label for="id_valid_to">Valid To</label>
+        <input type="datetime-local" class="form-control" id="id_valid_to" name="valid_to"
+               value="{{ offer.valid_to|date:'Y-m-d\TH:i' }}" required>
+    </div>
+
+    <button type="submit" class="btn btn-primary mr-2">Update</button>
+    <a href="{% url 'offers_list' %}" class="btn btn-light">Cancel</a>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const offerTypeSelect = document.getElementById('id_offer_type');
+    const categoryField = document.getElementById('category_field');
+    const productField = document.getElementById('product_field');
+    const categorySelect = document.getElementById('id_category');
+    const productSelect = document.getElementById('id_product');
+
+    const discountType = document.getElementById('id_discount_type');
+    const discountValue = document.getElementById('id_dis_value');
+    const errorBox = document.getElementById('discountError');
+    const form = document.getElementById('editOfferForm');
+
+    let selectedProductPrice = 0;
+
+    function toggleOfferTypeFields() {
+        const selectedType = offerTypeSelect.value;
+
+        // Reset visibility
+        categoryField.style.display = 'none';
+        productField.style.display = 'none';
+        categorySelect.removeAttribute('required');
+        productSelect.removeAttribute('required');
+
+        // Reset discount type
+        discountType.innerHTML = '<option value="">Select Discount Type</option>';
+
+        if (selectedType === 'category') {
+            categoryField.style.display = 'block';
+            categorySelect.setAttribute('required', 'required');
+            discountType.innerHTML += '<option value="percentage">Percentage</option>';
+        } else if (selectedType === 'product') {
+            productField.style.display = 'block';
+            productSelect.setAttribute('required', 'required');
+            discountType.innerHTML += '<option value="percentage">Percentage</option>';
+            discountType.innerHTML += '<option value="flat">Flat</option>';
+        }
+    }
+
+    // Product price tracking
+    productSelect.addEventListener('change', function() {
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        selectedProductPrice = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+        validateDiscount();
+    });
+
+    function showError(msg) {
+        errorBox.style.display = 'block';
+        errorBox.innerText = msg;
+        discountValue.classList.add('is-invalid');
+    }
+
+    function clearError() {
+        errorBox.style.display = 'none';
+        errorBox.innerText = '';
+        discountValue.classList.remove('is-invalid');
+    }
+
+    function validateDiscount() {
+        const type = discountType.value;
+        const value = parseFloat(discountValue.value);
+
+        if (!value) {
+            clearError();
+            return;
+        }
+
+        if (value <= 0) {
+            showError("Discount must be greater than 0");
+            return;
+        }
+
+        if (type === 'percentage' && value > 80) {
+            showError("Maximum allowed discount is 80%");
+            return;
+        }
+
+        if (type === 'flat' && selectedProductPrice && value >= selectedProductPrice) {
+            showError("Flat discount cannot exceed product price");
+            return;
+        }
+
+        clearError();
+    }
+
+    // Initial toggle
+    toggleOfferTypeFields();
+
+    // Events
+    offerTypeSelect.addEventListener('change', toggleOfferTypeFields);
+    discountType.addEventListener('change', validateDiscount);
+    discountValue.addEventListener('input', validateDiscount);
+
+    form.addEventListener('submit', function(e) {
+        if (errorBox.innerText !== '') e.preventDefault();
+    });
+});
+</script>
+
+{% endblock %}

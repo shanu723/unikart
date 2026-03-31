@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load static tz %}
+{% block content %}
+
+<div class="container py-5">
+  <div class="card shadow-sm rounded-4 p-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h3 class="mb-0">Order #{{ order.id }}</h3>
+      <a href="{% url 'download_invoice_pdf' order.id %}" class="btn btn-outline-danger" target="_blank">
+        <i class="fas fa-file-pdf"></i>
+      </a>
+    </div>
+
+    <!-- ORDER INFO -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <h6 class="fw-bold">Order Information</h6>
+        <p class="mb-1"><strong>Date:</strong>
+          {% timezone "Asia/Kolkata" %}{{ order.created_at|date:"d M Y, h:i A" }}{% endtimezone %}
+        </p>
+        <p class="mb-1"><strong>Status:</strong> {{ order_status }}</p>
+        <p class="mb-1"><strong>Payment:</strong> {{ order.payment_method|default:"N/A" }}</p>
+      </div>
+
+      <div class="col-md-6">
+        <h6 class="fw-bold">Shipping Address</h6>
+        {% if order.address %}
+          <p class="mb-0">{{ order.address.street }}</p>
+          <p class="mb-0">{{ order.address.city }}</p>
+          <p class="mb-0">{{ order.address.state }}</p>
+          <p class="mb-0">{{ order.address.pincode }}</p>
+        {% else %}
+          <p class="text-muted">No address available</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- PAYMENT -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <h6 class="fw-bold">Payment Details</h6>
+        {% if payment %}
+          <p class="mb-1"><strong>Method:</strong> {{ payment.payment_method }}</p>
+          <p class="mb-1"><strong>Status:</strong> {{ payment.status }}</p>
+          <p class="mb-1"><strong>Transaction ID:</strong> {{ payment.transaction_id }}</p>
+          <p class="mb-1"><strong>Amount Paid:</strong> ₹{{ payment.amount|floatformat:2 }}</p>
+        {% else %}
+          <p class="text-muted">Payment information not available</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ORDER ITEMS -->
+    <h6 class="fw-bold mb-3">Ordered Items</h6>
+
+    <table class="table table-bordered align-middle text-center">
+      <thead class="table-light">
+        <tr>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Price</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for item in order.items.all %}
+        <tr>
+          <td>{{ item.product.name }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>₹{{ item.price|floatformat:2 }}</td>
+          <td>₹{% widthratio item.price 1 item.quantity %}</td>
+
+          <!-- STATUS -->
+          <td>
+            {% if item.status == "Delivered" %}
+              <span class="badge bg-success">Delivered</span>
+            {% elif item.status == "Cancelled" %}
+              <span class="badge bg-danger">Cancelled</span>
+            {% elif item.status == "Returned" %}
+              <span class="badge bg-warning">Returned</span>
+            {% elif item.status == "Return Requested" %}
+              <span class="badge bg-info">Return Requested</span>
+            {% elif item.status == "Shipped" %}
+              <span class="badge bg-primary">Shipped</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ item.status }}</span>
+            {% endif %}
+          </td>
+
+          <!-- ACTION -->
+          <td>
+            {% if item.status == "Delivered" %}
+              <a href="{% url 'return_item' item.id %}" class="btn btn-outline-warning btn-sm">
+                Return
+              </a>
+            {% elif item.status == "Return Requested" %}
+              <span class="badge bg-info">Requested</span>
+            {% elif item.status == "Returned" %}
+              <span class="badge bg-warning">Returned</span>
+            {% elif item.status == "Cancelled" %}
+              <span class="badge bg-danger">Cancelled</span>
+            {% elif item.status == "Processing" or item.status == "Confirmed" %}
+              <form action="{% url 'cancel_item' item.id %}" method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Cancel this item?');">
+                  Cancel
+                </button>
+              </form>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- PRICE SUMMARY -->
+    <div class="row justify-content-end mt-4">
+      <div class="col-md-4">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Subtotal</span>
+            <span>₹{{ order.subtotal|floatformat:2 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Discount</span>
+            <span class="text-success">− ₹{{ order.discount|floatformat:2 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            <span>Shipping</span>
+            <span>₹{{ order.shipping|floatformat:2 }}</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between fw-bold">
+            <span>Total</span>
+            <span>₹{{ order.total|floatformat:2 }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="text-center mt-4">
+      <a href="{% url 'myorders' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Orders
+      </a>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

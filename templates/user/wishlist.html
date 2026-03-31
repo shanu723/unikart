@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+  /* Bootstrap icons rendering fix */
+  i.bi {
+    font-family: "bootstrap-icons" !important;
+    display: inline-block !important;
+    font-style: normal !important;
+    vertical-align: middle;
+    color: inherit;
+  }
+
+  .action-icons a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    text-decoration: none;
+    transition: transform 0.2s ease, color 0.2s ease, background 0.2s ease;
+  }
+
+  .action-icons i {
+    font-size: 1.4rem;
+    padding: 8px;
+    border-radius: 50%;
+  }
+
+  .action-icons a:hover i {
+    transform: scale(1.2);
+  }
+
+  .action-icons .text-primary i:hover {
+    background: rgba(0, 123, 255, 0.1);
+    color: #007bff;
+  }
+
+  .action-icons .text-success i:hover {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+  }
+
+  .action-icons .text-danger i:hover {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+
+  .wishlist-section table td {
+    vertical-align: middle;
+  }
+
+  @media (max-width: 576px) {
+    .action-icons a {
+      margin-right: 10px;
+    }
+
+    .action-icons i {
+      font-size: 1.2rem;
+    }
+  }
+</style>
+
+<section class="wishlist-section py-5">
+  <div class="container">
+    <h2 class="text-center mb-4">My Wishlist</h2>
+
+    {% if wishlist_items %}
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <tbody>
+
+          {% for item in wishlist_items %}
+          <tr class="border-bottom">
+            <td style="width: 120px;">
+              {% if item.product.productimages.all %}
+              <img src="{{ item.product.productimages.first.product_image.url }}" alt="{{ item.product.name }}"
+                class="img-fluid rounded shadow-sm" style="max-width: 100px;">
+              {% else %}
+              <img src="{% static 'images/placeholder.png' %}" alt="No image" class="img-fluid rounded shadow-sm"
+                style="max-width: 100px;">
+              {% endif %}
+            </td>
+
+            <td>
+              <strong>{{ item.product.name }}</strong>
+              {% if item.product.brand %}
+              <div class="text-muted small">{{ item.product.brand }}</div>
+              {% endif %}
+            </td>
+
+            <td class="text-end">
+              <div class="action-icons d-flex justify-content-end">
+
+                <!-- View Product -->
+                <a href="{% url 'product' item.product.id %}" class="text-primary" title="View Product">
+                  <i class="bi bi-eye"></i>
+                </a>
+
+                <!-- Add to Cart -->
+               <form method="post" action="{% url 'add_to_cart' item.product.id item.product.variation_set.first.size|default:'default' %}" style="display:inline;">
+  {% csrf_token %}
+  <button type="submit" class="p-0 border-0 bg-transparent" title="Add to Cart">
+    <i class="bi bi-cart-plus text-success"></i>
+  </button>
+</form>
+
+                <!-- Remove from Wishlist -->
+                <a href="{% url 'remove_wishlist' item.id %}" class="text-danger" title="Remove from Wishlist">
+                  <i class="bi bi-trash"></i>
+                </a>
+
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+
+        </tbody>
+      </table>
+    </div>
+
+    <div class="text-center mt-4">
+      <a href="{% url 'shop' %}" class="btn btn-primary">Continue Shopping</a>
+    </div>
+
+    {% else %}
+    <div class="text-center">
+
+
+      <h4 class="mt-3">Your wishlist is empty</h4>
+      <a href="{% url 'shop' %}" class="btn btn-primary mt-3">Continue Shopping</a>
+    </div>
+    {% endif %}
+
+  </div>
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function addToCart(productId, size) {
+    const selectedSize = size || 'default';
+    fetch(`/add_to_cart/${productId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: `size=${selectedSize}`
+    })
+      .then(response => {
+        if (response.ok) {
+          window.location.href = '/cart/';
+        } else {
+          alert("Failed to add to cart.");
+        }
+      })
+      .catch(error => console.error("Error:", error));
+  }
+</script>
+{% endblock %}

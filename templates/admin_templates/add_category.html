@@ -1,0 +1,53 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+{% block content %}
+
+
+
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card">
+
+        <div class="card-header">
+          <h5>Add New Category</h5>
+        </div>
+
+        <div class="card-body">
+
+          <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+              <label>Category Name</label>
+              <input type="text"
+                     class="form-control"
+                     name="name"
+                     placeholder="Enter category name"
+                     required>
+            </div>
+
+            <div class="form-group">
+              <label>Active Status</label><br>
+              <input type="checkbox" name="status">
+            </div>
+
+            <div class="text-right">
+              <button type="submit" class="btn btn-success">
+                Save Category
+              </button>
+            </div>
+
+          </form>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Auto Close Message After 3 Seconds (Bootstrap 4 + jQuery) -->
+
+
+{% endblock %}

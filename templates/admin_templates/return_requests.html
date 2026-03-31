@@ -1,0 +1,53 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h4 class="card-title">Return Requests</h4>
+
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>User</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for req in requests %}
+          <tr>
+            <td>{{ req.order.id }}</td>
+            <td>{{ req.user.username }}</td>
+            <td>{{ req.reason }}</td>
+            <td>
+              <span class="badge 
+                {% if req.status == 'Pending' %} bg-warning
+                {% elif req.status == 'Accepted' %} bg-success
+                {% else %} bg-danger {% endif %}">
+                {{ req.status }}
+              </span>
+            </td>
+            <td>{{ req.created_at|date:"d M Y, h:i A" }}</td>
+            <td>
+              {% if req.status == 'Pending' %}
+                <a href="{% url 'update_return_status' req.id 'accept' %}" class="btn btn-sm btn-success">Accept</a>
+                <a href="{% url 'update_return_status' req.id 'reject' %}" class="btn btn-sm btn-danger">Reject</a>
+              {% else %}
+                <span>—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center">No return requests found</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

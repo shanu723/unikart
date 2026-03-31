@@ -1,0 +1,59 @@
+{% extends 'admin_templates/admin_dashboard.html' %}
+{% block content %}
+<div class="container mt-4">
+
+  <h2>Edit Coupon</h2>
+  <form method="POST">
+    {% csrf_token %}
+
+    <div class="mb-3">
+        <label>Coupon Code</label>
+        {{ form.code }}
+        {{ form.code.errors }}
+    </div>
+
+    <div class="mb-3">
+        <label>Discount Type</label>
+        {{ form.discount_type }}
+        {{ form.discount_type.errors }}
+    </div>
+
+    <div class="mb-3">
+        <label>Discount Value</label>
+        {{ form.discount_value }}
+        {{ form.discount_value.errors }}
+    </div>
+
+    <div class="mb-3">
+        <label>Max Discount Amount</label>
+        {{ form.max_discount_amount }}
+        {{ form.max_discount_amount.errors }}
+    </div>
+    <div class="mb-3">
+    <label>Minimum Purchase Amount</label>
+    {{ form.min_purchase_amount }}
+    {{ form.min_purchase_amount.errors }}
+</div>
+    <div class="mb-3">
+        <label>Valid From</label>
+        {{ form.valid_from }}
+        {{ form.valid_from.errors }}
+    </div>
+
+    <div class="mb-3">
+        <label>Valid To</label>
+        {{ form.valid_to }}
+        {{ form.valid_to.errors }}
+    </div>
+
+    <div class="form-check mb-3">
+        {{ form.active }}
+        <label class="form-check-label">Active</label>
+    </div>
+
+    <button type="submit" class="btn btn-primary">
+        Update Coupon
+    </button>
+</form>
+</div>
+{% endblock %}

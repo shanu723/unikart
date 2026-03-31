@@ -1,0 +1,620 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    .checkout-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .address-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background: white;
+    }
+
+    .address-card.selected {
+        border-color: #007bff;
+        background: #f8f9ff;
+    }
+
+    .product-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+    }
+
+    .product-item:last-child {
+        border-bottom: none;
+    }
+
+    .product-image {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin-right: 15px;
+    }
+
+    .price-breakdown {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+    }
+
+    .price-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .price-row.total {
+        font-weight: bold;
+        font-size: 18px;
+        border-top: 2px solid #dee2e6;
+        padding-top: 10px;
+        margin-top: 10px;
+    }
+
+    .coupon-section {
+        background: #e8f5e8;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .payment-method {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .payment-method:hover {
+        border-color: #007bff;
+        background: #f8f9ff;
+    }
+
+    .payment-method.selected {
+        border-color: #007bff;
+        background: #f8f9ff;
+    }
+</style>
+
+<main>
+    <div class="slider-area">
+
+        <div class="single-slider slider-height2 d-flex align-items-center">
+            <div class="container">
+                <div class="row">
+                    <div class="col-xl-12">
+                        <div class="hero-cap text-center">
+                            <h2>Checkout</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="checkout_area section_padding">
+        <div class="container">
+            {% if not items %}
+            <div class="text-center">
+                <h3>Your cart is empty</h3>
+                <a href="{% url 'shop' %}" class="btn btn-primary">Continue Shopping</a>
+            </div>
+            {% else %}
+            <div class="row">
+                <!-- Left Column -->
+                <div class="col-lg-8">
+
+                    ```
+                    <!-- Address Section -->
+                    <div id="addressSection">
+                        <div class="checkout-section">
+                            <h3><i class="fas fa-map-marker-alt"></i> Delivery Address</h3>
+                            {% for address in user_addresses %}
+                            {% if address.is_default %}
+                            <div class="address-card default-address" id="defaultAddress">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5>{{ address.user.get_full_name|default:address.user.username }}</h5>
+                                        <p class="mb-1">{{ address.street }}</p>
+                                        <p class="mb-1">{{ address.city }}, {{ address.district }}</p>
+                                        <p class="mb-1">{{ address.state }} - {{ address.pincode }}</p>
+                                        <span class="badge bg-primary">Default</span>
+                                    </div>
+                                </div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="useDefaultAddress"
+                                        name="selected_address" value="{{ address.id }}" checked>
+                                    <label class="form-check-label" for="useDefaultAddress">
+                                        Deliver to this address
+                                    </label>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+
+                            <div class="text-center mt-3">
+                                <button type="button" id="changeAddressBtn" class="btn btn-outline-primary">
+                                    <i class="fas fa-exchange-alt"></i> Deliver to another address
+                                </button>
+                            </div>
+
+                            <div id="newAddressForm" class="mt-4" style="display: none;">
+                                <h5 class="mb-3">Enter New Delivery Address</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-6"><input type="text" name="street" class="form-control"
+                                            placeholder="Street" required></div>
+                                    <div class="col-md-6"><input type="text" name="city" class="form-control"
+                                            placeholder="City" required></div>
+                                    <div class="col-md-6"><input type="text" name="district" class="form-control"
+                                            placeholder="District" required></div>
+                                    <div class="col-md-6"><input type="text" name="state" class="form-control"
+                                            placeholder="State" required></div>
+                                    <div class="col-md-6"><input type="text" name="pincode" class="form-control"
+                                            placeholder="Pincode" required></div>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <button type="button" id="cancelAddressBtn"
+                                        class="btn btn-secondary me-3">Cancel</button>
+                                    <div class="form-check d-inline-block">
+                                        <input class="form-check-input" type="checkbox" name="selected_address"
+                                            id="newDeliveryAddress" value="new">
+                                        <label class="form-check-label" for="newDeliveryAddress">
+                                            Deliver to this address
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coupon Section -->
+
+                    <div class="checkout-section mt-4" id="main-coupon-section">
+                        <h3><i class="fas fa-tag"></i> Coupon Code</h3>
+
+                        {% if coupon %}
+                        <!-- Applied Coupon -->
+                        <div class="coupon-section d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>Applied Coupon:</strong> {{ coupon.code }} <br>
+                                <small>Discount: ₹{{ discount|floatformat:2 }}</small>
+                            </div>
+                            <form method="POST" action="{% url 'apply_coupon' %}" class="couponForm">
+                                {% csrf_token %}
+                                <input type="hidden" name="remove_coupon" value="1">
+                                {% for item in items %}
+                                <input type="hidden" name="selected_items[]" value="{{ item.id }}">
+                                {% endfor %}
+                                <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                            </form>
+                        </div>
+                        {% else %}
+                        <!-- Apply Coupon Form -->
+
+
+                        <form method="POST" action="{% url 'apply_coupon' %}" id="couponForm" class="row mt-3">
+                            {% csrf_token %}
+                            <div class="col-md-8">
+                                <input type="text" name="coupon_code" class="form-control"
+                                    placeholder="Enter coupon code" required>
+                            </div>
+                            {% for item in items %}
+                            <input type="hidden" name="selected_items[]" value="{{ item.id }}">
+                            {% endfor %}
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-primary w-100">Apply Coupon</button>
+                            </div>
+                        </form>
+                        {% endif %}
+
+                        <!-- Available Coupons -->
+                        {% if available_coupons %}
+                        <div class="mt-3">
+                            <small class="text-muted d-block mb-2">Available Coupons:</small>
+                            <div class="d-flex flex-wrap gap-2">
+                                {% for c in available_coupons %}
+                                <span class="badge px-3 py-2"
+                                    style="background-color: {% if c.valid_to and c.valid_to|timeuntil:'now' < '1 day' %}#dc3545{% else %}#ffc107{% endif %}; color:#000; font-size:13px; font-weight:600; border-radius:6px; cursor:pointer;"
+                                    onclick="applyCouponCode('{{ c.code }}')">
+                                    {{ c.code }}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+
+                    <!-- Payment Method Section -->
+                    <form method="POST" action="{% url 'place_order' %}" id="placeOrderForm" class="mt-4">
+                        {% csrf_token %}
+                        <div class="checkout-section">
+                            <h3><i class="fas fa-credit-card"></i> Payment Method</h3>
+                            <div class="payment-method selected">
+                                <div class="d-flex align-items-center">
+                                    <input type="radio" name="payment_method" value="cod" checked>
+                                    <div class="ml-3">
+                                        <h5 class="mb-1">Cash on Delivery</h5>
+                                        <p class="mb-0 text-muted">Pay when your order is delivered</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="payment-method">
+                                <div class="d-flex align-items-center">
+                                    <input type="radio" name="payment_method" value="razorpay">
+                                    <div class="ml-3">
+                                        <h5 class="mb-1">Razor Pay</h5>
+                                        <p class="mb-0 text-muted">Pay securely with your card</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="payment-method">
+                                <div class="d-flex align-items-center">
+                                    <input type="radio" name="payment_method" value="Wallet" id="walletOption">
+                                    <div class="ml-3">
+                                        <h5 class="mb-1">Wallet Pay</h5>
+                                        <p class="mb-0 text-muted">Use Unikart Wallet for seamless transaction </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
+
+                <!-- Right Column -->
+                <div class="col-lg-4">
+                    <div class="checkout-section" id="main-order-summary">
+                        <h3><i class="fas fa-shopping-bag"></i> Order Summary</h3>
+
+                        <div class="mb-3">
+                            {% for item in items %}
+                            <div class="product-item d-flex align-items-center mb-2">
+                                {% with img=item.product.productimages.first %}
+                                <img src="{% if img %}{{ img.product_image.url }}{% else %}{% static 'assets/img/gallery/popular1.png' %}{% endif %}"
+                                    alt="{{ item.product.name }}" class="product-image">
+                                {% endwith %}
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ item.product.name }}</h6>
+                                    <small class="text-muted">Size: {{ item.size }} | Qty: {{ item.quantity }}</small>
+                                </div>
+                                <div class="text-right">
+                                    <strong>₹{{ item.line_total|floatformat:2 }}</strong>
+                                </div>
+                                <!-- Hidden input for Razorpay -->
+                                <input type="hidden" class="selected-item-from-cart" value="{{ item.id }}">
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="price-breakdown">
+                            <div class="price-row"><span>Subtotal:</span><span>₹{{ subtotal|floatformat:2 }}</span>
+                            </div>
+
+                            {% if discount > 0 and coupon %}
+                            <div class="price-row text-success">
+                                <span>Discount ({{ coupon.code }}):</span>
+                                <span>-₹{{ discount|floatformat:2 }}</span>
+                            </div>
+                            {% endif %}
+
+                            <div class="price-row"><span>Shipping:</span><span>₹{{ shipping|floatformat:2 }}</span>
+                            </div>
+                            <div class="price-row total">
+                                <span>Total:</span>
+                                <span>₹{{ total|floatformat:2 }}</span>
+                            </div>
+                        </div>
+
+                        <button type="button" id="placeOrderBtn" class="btn btn-success btn-lg btn-block mt-3">
+                            Place Order - ₹{{ total|floatformat:2 }}
+                        </button>
+                        <div class="mt-3 text-center">
+                            <small class="text-muted">
+                                <i class="fas fa-shield-alt"></i> Your payment information is secure and encrypted
+                            </small>
+                        </div>
+
+                    </div>
+                    {% endif %}
+                    ```
+                    {% endblock %}
+                </div>
+    </section>
+</main>
+
+<footer class="footer-area footer-padding">
+    <div class="container text-center">
+        <p class="mb-0">&copy;
+            <script>document.write(new Date().getFullYear());</script> Unikart. All rights reserved.
+        </p>
+    </div>
+</footer>
+
+{% block scripts %}
+
+<script src="{% static 'assets/js/vendor/jquery-1.12.4.min.js' %}"></script>
+
+<script src="{% static 'assets/js/bootstrap.min.js' %}"></script>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const changeBtn = document.getElementById("changeAddressBtn");
+        const cancelBtn = document.getElementById("cancelAddressBtn");
+        const newForm = document.getElementById("newAddressForm");
+        const useDefault = document.getElementById("useDefaultAddress");
+        const useNew = document.getElementById("newDeliveryAddress");
+
+        // Address toggle
+        if (changeBtn) changeBtn.addEventListener("click", () => {
+            newForm.style.display = "block";
+            changeBtn.style.display = "none";
+            if (useDefault) useDefault.checked = false;
+        });
+        if (cancelBtn) cancelBtn.addEventListener("click", () => {
+            newForm.style.display = "none";
+            changeBtn.style.display = "inline-block";
+            if (useNew) useNew.checked = false;
+            if (useDefault) useDefault.checked = true;
+        });
+        if (useDefault && useNew) {
+            useDefault.addEventListener("change", () => { if (useDefault.checked) useNew.checked = false });
+            useNew.addEventListener("change", () => { if (useNew.checked) useDefault.checked = false });
+        }
+
+        // Payment method selection
+        document.querySelectorAll('.payment-method').forEach(div => {
+            div.addEventListener('click', function () {
+                document.querySelectorAll('.payment-method').forEach(m => m.classList.remove('selected'));
+                this.classList.add('selected');
+                this.querySelector('input[type="radio"]').checked = true;
+            });
+        });
+
+        const placeOrderForm = document.getElementById("placeOrderForm");
+
+        document.addEventListener("click", function (e) {
+            if (e.target && e.target.id === "placeOrderBtn") {
+                console.log("Place Order button clicked");
+                e.preventDefault();
+                console.log("Default prevented");
+
+                // Determine selected address
+                let selectedAddress = document.querySelector("input[name='selected_address']:checked");
+                if (!selectedAddress) {
+                    if (newForm.style.display === "block") {
+                        selectedAddress = { value: "new" }; // User is entering new address
+                    } else {
+                        alert("Please select a delivery address.");
+                        return;
+                    }
+                }
+
+                // Remove old hidden address inputs
+                placeOrderForm.querySelectorAll('input.address-hidden-field').forEach(i => i.remove());
+
+                // Add hidden input for selected_address
+                const addressInput = document.createElement('input');
+                addressInput.type = 'hidden';
+                addressInput.name = 'selected_address';
+                addressInput.value = selectedAddress.value;
+                addressInput.classList.add('address-hidden-field');
+                placeOrderForm.appendChild(addressInput);
+
+                // If user is entering new address, add all fields as hidden inputs
+                if (selectedAddress.value === "new") {
+                    ['street', 'city', 'district', 'state', 'pincode'].forEach(field => {
+                        const inputElem = document.querySelector(`input[name='${field}']`);
+                        if (inputElem) {
+                            const hidden = document.createElement('input');
+                            hidden.type = 'hidden';
+                            hidden.name = field;
+                            hidden.value = inputElem.value;
+                            hidden.classList.add('address-hidden-field');
+                            placeOrderForm.appendChild(hidden);
+                        }
+                    });
+                }
+
+                // Get selected payment method
+                const paymentMethodInput = document.querySelector("input[name='payment_method']:checked");
+                if (!paymentMethodInput) {
+                    alert("Please select a payment method.");
+                    return;
+                }
+                const paymentMethod = paymentMethodInput.value;
+
+                // Add selected items to form for ALL payment methods
+                placeOrderForm.querySelectorAll("input[name='selected_items[]']").forEach(i => i.remove());
+                const selectedItems = Array.from(document.querySelectorAll(".selected-item-from-cart"));
+                if (selectedItems.length === 0) { alert("Please select at least one item to checkout."); return; }
+
+                selectedItems.forEach(item => {
+                    const hidden = document.createElement("input");
+                    hidden.type = "hidden";
+                    hidden.name = "selected_items[]";
+                    hidden.value = item.value;
+                    placeOrderForm.appendChild(hidden);
+                });
+
+                // If Razorpay, do the Razorpay flow
+                if (paymentMethod === "razorpay") {
+                    const formData = new FormData(placeOrderForm);
+                    fetch("{% url 'create_order' %}", { method: "POST", body: formData })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.error) { alert(data.error); return; }
+                            const options = {
+                                key: data.razorpay_key,
+                                amount: data.amount, // already in paise from backend
+                                currency: data.currency,
+                                name: "Unikart",
+                                description: "Order Payment",
+                                order_id: data.order_id,
+                                handler: function (response) {
+                                    let paymentIdInput = placeOrderForm.querySelector("input[name='razorpay_payment_id']");
+                                    if (!paymentIdInput) {
+                                        paymentIdInput = document.createElement("input");
+                                        paymentIdInput.type = "hidden";
+                                        paymentIdInput.name = "razorpay_payment_id";
+                                        placeOrderForm.appendChild(paymentIdInput);
+                                    }
+                                    paymentIdInput.value = response.razorpay_payment_id;
+                                    placeOrderForm.submit();
+                                },
+                                prefill: { name: "{{ request.user.first_name }} {{ request.user.last_name }}", email: "{{ request.user.email }}" },
+                                theme: { color: "#3399cc" }
+                            };
+                            const rzp = new Razorpay(options);
+                            rzp.open();
+                        })
+                        .catch(err => { console.error(err); alert("An error occurred while initiating payment."); });
+                } else {
+                    // For COD/Wallet, submit normally
+                    placeOrderForm.submit();
+                }
+            } // end event target check
+        });
+    });
+
+
+    // AJAX Coupon Logic
+    document.addEventListener("DOMContentLoaded", function () {
+        // Find existing coupon forms and attach listener
+        function attachCouponListener() {
+            const couponSection = document.getElementById('main-coupon-section');
+            if (!couponSection) return;
+
+            const forms = couponSection.querySelectorAll('form[action*="apply_coupon"]');
+            forms.forEach(form => {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    const submitBtn = this.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerText;
+                    submitBtn.disabled = true;
+                    submitBtn.innerText = "Processing...";
+
+                    const formData = new FormData(this);
+
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'include'
+                    })
+                        .then(response => {
+                            if (response.redirected) {
+                                return response.text(); // Get the HTML of the redirected page (contains messages)
+                            }
+                            return response.text();
+                        })
+                        .then(html => {
+                            // 1. Extract messages from the response (which is likely the redirected checkout page)
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, "text/html");
+
+                            const newMessages = doc.getElementById('center-toast-container');
+                            const currentMessages = document.getElementById('center-toast-container');
+
+                            if (newMessages && currentMessages) {
+                                currentMessages.innerHTML = newMessages.innerHTML;
+
+                                // Auto-close newly added toasts
+                                setTimeout(function () {
+                                    let msgs = document.querySelectorAll('.center-toast');
+                                    msgs.forEach(msg => {
+                                        if (msg.style.opacity !== "0") {
+                                            msg.style.transition = "opacity 0.5s ease";
+                                            msg.style.opacity = "0";
+                                            setTimeout(() => msg.remove(), 500);
+                                        }
+                                    });
+                                }, 2500);
+                            } else if (currentMessages) {
+                                // If new request has no messages, clear current messages
+                                currentMessages.innerHTML = '';
+                            }
+
+                            // 2. Fetch the CURRENT URL (window.location.href) to get the updated checkout state
+                            // This preserves ?buy_now_item=... which the redirect usually drops
+                            // Add cache busting and credentials
+                            const url = new URL(window.location.href);
+                            url.searchParams.set('t', new Date().getTime());
+                            return fetch(url.toString(), { credentials: 'include' });
+                        })
+                        .then(response => response.text())
+                        .then(html => {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, "text/html");
+
+                            // 3. Update Coupon Section
+                            const newCouponSection = doc.getElementById('main-coupon-section');
+                            const currentCouponSection = document.getElementById('main-coupon-section');
+                            if (newCouponSection && currentCouponSection) {
+                                currentCouponSection.innerHTML = newCouponSection.innerHTML;
+                                // Re-attach listeners to the new form
+                                attachCouponListener();
+                            }
+
+                            // 4. Update Order Summary
+                            const newOrderSummary = doc.getElementById('main-order-summary');
+                            const currentOrderSummary = document.getElementById('main-order-summary');
+                            if (newOrderSummary && currentOrderSummary) {
+                                currentOrderSummary.innerHTML = newOrderSummary.innerHTML;
+                            }
+
+                            // Re-enable button (though it might be replaced)
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerText = originalText;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert("An error occurred while processing the coupon.");
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerText = originalText;
+                            }
+                        });
+                });
+            });
+        }
+
+        attachCouponListener();
+    });
+
+    function applyCouponCode(code) {
+        const couponForm = document.getElementById("couponForm");
+        if (!couponForm) return;
+
+        const input = couponForm.querySelector('input[name="coupon_code"]');
+        if (!input) return;
+
+        input.value = code;
+
+        // Dispatch submit event instead of normal form submit
+        couponForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
+
+</script>
+
+
+{% endblock %}

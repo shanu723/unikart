@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="card shadow-lg p-4 text-center">
+        <h2 class="text-success mb-3">🎉 Order Confirmed!</h2>
+        <p class="text-muted">Thank you for your purchase, {{ user.username }}.</p>
+        <p><strong>Order ID:</strong> #{{ order.id }}</p>
+        <p><strong>Payment Method:</strong> {{ order.payment_method }}</p>
+        <hr>
+
+        <!-- ✅ Delivery Address Section -->
+        {% if order.address %}
+        <div class="text-start mb-4">
+            <h4><i class="fas fa-map-marker-alt text-danger"></i> Delivery Address</h4>
+            <p class="mb-1"><strong>{{ order.address.user.get_full_name|default:order.address.user.username }}</strong>
+            </p>
+            <p class="mb-1">{{ order.address.street }}</p>
+            <p class="mb-1">{{ order.address.city }}, {{ order.address.district }}</p>
+            <p class="mb-1">{{ order.address.state }} - {{ order.address.pincode }}</p>
+        </div>
+        {% endif %}
+        <hr>
+
+        <h4>🛒 Order Summary</h4>
+        <table class="table table-bordered mt-3">
+            <thead class="table-light">
+                <tr>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Price (₹)</th>
+                    <th>Total (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order_items %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.price|floatformat:2 }}</td>
+                    <td>{{ order.total|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+
+
+        <div class="mt-4">
+            <a href="{% url 'download_invoice_pdf' order.id %}" class="btn btn-outline-primary" target="blank"
+                rel="noopener noreferrer">
+                <i class="fas fa-download"></i> Download Invoice (PDF)
+            </a>
+            <a href="{% url 'shop' %}" class="btn btn-success ms-2">Continue Shopping</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

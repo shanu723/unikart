@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load static tz %}
+{% block content %}
+
+<style>
+/* Tabs */
+.order-tabs .nav-link {
+  color: #555;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.order-tabs .nav-link.active {
+  color: #000;
+  border-bottom: 2px solid #000;
+  background: none;
+}
+
+/* Table */
+.orders-table thead {
+  background: #f8f9fa;
+}
+
+.orders-table th {
+  font-weight: 600;
+  color: #444;
+  border-bottom: 1px solid #ddd;
+}
+
+.orders-table td {
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+/* Status badges */
+.badge-status {
+  padding: 6px 10px;
+  font-weight: 500;
+  border-radius: 12px;
+}
+
+.badge-delivered { background: #e6f4ea; color: #137333; }
+.badge-cancelled { background: #fdecea; color: #a50e0e; }
+.badge-returned { background: #e8f0fe; color: #174ea6; }
+.badge-processing { background: #fef7e0; color: #8a6d1d; }
+
+/* Search */
+#orderSearch {
+  border-radius: 20px;
+  padding: 10px 15px;
+}
+</style>
+
+<div class="container py-5">
+  <h3 class="text-center mb-4 fw-semibold">My Orders</h3>
+
+  <!-- Search -->
+  <div class="row justify-content-center mb-4">
+    <div class="col-md-6">
+      <input type="text"
+             id="orderSearch"
+             class="form-control"
+             placeholder="Search by order ID or product name">
+    </div>
+  </div>
+
+  <!-- Tabs -->
+ <ul id="orderTabs" class="nav justify-content-center mb-4 order-tabs">
+
+<li class="nav-item">
+<a href="?status=All"
+class="nav-link {% if current_status == 'All' %}active{% endif %}">
+All
+</a>
+</li>
+
+<li class="nav-item">
+<a href="?status=Delivered"
+class="nav-link {% if current_status == 'Delivered' %}active{% endif %}">
+Delivered
+</a>
+</li>
+
+<li class="nav-item">
+<a href="?status=Cancelled"
+class="nav-link {% if current_status == 'Cancelled' %}active{% endif %}">
+Cancelled
+</a>
+</li>
+
+<li class="nav-item">
+<a href="?status=Returned"
+class="nav-link {% if current_status == 'Returned' %}active{% endif %}">
+Returned
+</a>
+</li>
+
+</ul>
+
+  {% if page_obj %}
+  <div class="table-responsive">
+    <table class="table orders-table align-middle">
+      <thead>
+        <tr class="text-center">
+          <th>Order</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th class="text-start">Item</th>
+          
+          <th>Actions</th>
+        </tr>
+      </thead>
+     <tbody id="ordersTable">
+  {% for order in page_obj %}
+
+  <tr class="order-row"
+      data-status="{{ order.status }}"
+      data-search="#{{ order.id }} {% for item in order.items.all %}{{ item.product.name }} {% endfor %}">
+
+    <!-- Order ID -->
+    <td class="fw-medium text-center">#{{ order.id }}</td>
+
+    <!-- Order Date -->
+    <td class="text-center">
+      {% timezone "Asia/Kolkata" %}
+        {{ order.created_at|date:"d M Y" }}
+      {% endtimezone %}
+    </td>
+
+    <!-- Order Status -->
+    <td class="text-center">
+      {% if order.status == "Delivered" %}
+        <span class="badge-status badge-delivered">Delivered</span>
+      {% elif order.status == "Cancelled" %}
+        <span class="badge-status badge-cancelled">Cancelled</span>
+      {% elif order.status == "Returned" %}
+        <span class="badge-status badge-returned">Returned</span>
+      {% else %}
+        <span class="badge-status badge-processing">{{ order.status }}</span>
+      {% endif %}
+    </td>
+
+    <!-- Items Summary -->
+    <td class="text-start">
+      {% for item in order.items.all %}
+        {{ item.product.name }} × {{ item.quantity }}
+        {% if not forloop.last %}<br>{% endif %}
+      {% endfor %}
+    </td>
+
+    <!-- Total Price -->
+    
+    <!-- Actions -->
+    <td class="text-center">
+      <a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-dark">
+        View Details
+      </a>
+    </td>
+
+  </tr>
+
+  {% endfor %}
+</tbody>
+    </table>
+  </div>
+
+  
+  <nav aria-label="Page navigation example">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?status={{ current_status }}&page={{ page_obj.previous_page_number }}">&laquo;</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+      {% endif %}
+
+      {% for num in page_obj.paginator.page_range %}
+        {% if page_obj.number == num %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% else %}
+          <li class="page-item"><a class="page-link" href="?status={{ current_status }}&page={{ num }}">{{ num }}</a></li>
+        {% endif %}
+      {% endfor %}
+
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?status={{ current_status }}&page={{ page_obj.next_page_number }}">&raquo;</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+  
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script>
+
+
+document.addEventListener("DOMContentLoaded", function () {
+
+  const tabs = document.querySelectorAll("#orderTabs .nav-link");
+  const rows = document.querySelectorAll(".order-row");
+  const searchInput = document.getElementById("orderSearch");
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", function (e) {
+      e.preventDefault();
+
+      const status = this.textContent.trim();
+
+      tabs.forEach(t => t.classList.remove("active"));
+      this.classList.add("active");
+
+      rows.forEach(row => {
+        if (status === "All" || row.dataset.status === status) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+  });
+
+  if (searchInput) {
+    searchInput.addEventListener("keyup", function () {
+      const value = this.value.toLowerCase();
+
+      rows.forEach(row => {
+        if (row.dataset.search.toLowerCase().includes(value)) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+  }
+
+});
+</script>
+{% endblock %}

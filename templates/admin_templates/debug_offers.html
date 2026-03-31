@@ -1,0 +1,85 @@
+{% extends 'admin_templates/base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h4 class="card-title">Debug Offers</h4>
+                    <p><strong>Current Time:</strong> {{ current_time }}</p>
+                    
+                    <h5>All Offers ({{ all_offers.count }})</h5>
+                    {% if all_offers %}
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Type</th>
+                                    <th>Discount</th>
+                                    <th>Valid From</th>
+                                    <th>Valid To</th>
+                                    <th>Active</th>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for offer in all_offers %}
+                                <tr>
+                                    <td>{{ offer.id }}</td>
+                                    <td>{{ offer.title }}</td>
+                                    <td>{{ offer.offer_type }}</td>
+                                    <td>{{ offer.dis_value }}{% if offer.discount_type == 'percentage' %}%{% else %}₹{% endif %}</td>
+                                    <td>{{ offer.valid_from }}</td>
+                                    <td>{{ offer.valid_to }}</td>
+                                    <td>
+                                        {% if offer.is_active %}
+                                            <span class="badge badge-success">Active</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ offer.product.name|default:"-" }}</td>
+                                    <td>{{ offer.category.name|default:"-" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p>No offers found!</p>
+                    {% endif %}
+                    
+                    <h5>Products with Offers ({{ products_with_offers.count }})</h5>
+                    {% if products_with_offers %}
+                        <ul>
+                            {% for product in products_with_offers %}
+                                <li>{{ product.name }} - Offer: {{ product.offer.title }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No products have offers assigned!</p>
+                    {% endif %}
+                    
+                    <h5>Categories with Offers ({{ categories_with_offers.count }})</h5>
+                    {% if categories_with_offers %}
+                        <ul>
+                            {% for category in categories_with_offers %}
+                                <li>{{ category.name }} - Offers: 
+                                    {% for offer in category.offer_on_this_category.all %}
+                                        {{ offer.title }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No categories have offers assigned!</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
