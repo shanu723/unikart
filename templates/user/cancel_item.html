@@ -5,7 +5,7 @@
     <div class="card shadow p-4">
 
 ```
-    <h4 class="mb-3">Return Order #{{ order.id }}</h4>
+    <h4 class="mb-3">Cancel Order #{{ order.id }}</h4>
 
     <h5 class="mb-2">Item: {{ item.product.name }}</h5>
     <p class="text-muted">Order ID: #{{ item.order.id }}</p>
@@ -17,38 +17,24 @@
 
         <!-- Quantity -->
         <div class="mb-3">
-            <label class="form-label">Select Quantity</label>
+            <label class="form-label">Select Quantity to Cancel</label>
             <input type="number"
-                   name="return_qty"
+                   name="cancel_qty"
                    min="1"
-                   max="{{ remaining }}"
+                   max="{{ item.quantity }}"
                    class="form-control"
                    placeholder="Enter quantity"
                    required>
-            <small class="text-muted">
-                You can return up to {{ remaining }} item(s)
-            </small>
-        </div>
-
-        <!-- Reason -->
-        <div class="mb-3">
-            <label for="reason" class="form-label">Reason for Return</label>
-            <textarea name="reason"
-                      id="reason"
-                      class="form-control"
-                      rows="4"
-                      placeholder="Please enter the reason for return..."
-                      required></textarea>
         </div>
 
         <!-- Buttons -->
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-danger">
-                Confirm Return
+                Confirm Cancel
             </button>
 
             <a href="{% url 'myorders' %}" class="btn btn-secondary">
-                Cancel
+                Back
             </a>
         </div>
 

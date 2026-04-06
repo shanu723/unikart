@@ -172,7 +172,7 @@ def verify_otp(request, username):
             user.save()
 
             profile, created = UserProfile.objects.get_or_create(user=user)
-            credit_wallet(user,100,"Signup bonus credited")
+            credit_wallet(user,100,"Signup bonus credited",source='signup_bonus')
             ref_code = request.session.get('referral_code')
             if ref_code:
                 try:
@@ -181,7 +181,7 @@ def verify_otp(request, username):
                         profile.referred_by = referrer
                         profile.save()
 
-                        credit_wallet(referrer.user,100,"Referral bonus credited")
+                        credit_wallet(referrer.user,100,"Referral bonus credited",source='signup_bouns')
                 except UserProfile.DoesNotExist:
                     pass
 
@@ -228,13 +228,38 @@ def resend_otp(request, username):
     messages.success(request, "A new OTP has been sent to your email")
     return redirect('verify_otp', username=username)
 
-def credit_wallet(user,amount,description):
+def credit_wallet(user,amount,description,source,order=None):
     wallet,_=Wallet.objects.get_or_create(user=user)
     wallet.balance+=amount
     wallet.save()
 
-    WalletTransaction.objects.create(user=user,wallet=wallet,amount=amount,transaction_type='credit',description=description)
-    Notification.objects.create(user=user,message=f"{amount}{description}")    
+    WalletTransaction.objects.create(user=user,
+    wallet=wallet,amount=amount,
+    transaction_type='credit',source=source,
+    order=order,description=description)
+    Notification.objects.create(user=user,message=f"{amount} credited {description}")
+
+
+def debit_wallet(user,amount,description,source,order=None):
+    wallet,_=Wallet.objects.get_or_create(user=user)
+
+    if wallet.balance >= amount:
+        wallet.balance -= amount
+        wallet.save()
+
+        WalletTransaction.objects.create(
+            user=user,
+            wallet=wallet,
+            amount=amount,
+            transaction_type='debit',
+            source='order_payment',
+            order=order,
+            description=description
+        )
+
+        return True
+    return False    
+
 @login_required
 def user_list(request):
     filter_status = request.GET.get('status','all')
@@ -1547,27 +1572,19 @@ def wallet_payment_success(request):
         order_id = request.POST.get('razorpay_order_id')
         amount = request.POST.get('amount')
 
-        
         if payment_id and order_id and amount:
-            wallet, _ = Wallet.objects.get_or_create(user=request.user)
-            
             amount_decimal = Decimal(amount)
 
-            wallet.balance+=amount_decimal
-            wallet.save()
-
-            WalletTransaction.objects.create(
+            credit_wallet(
                 user=request.user,
-                wallet=wallet,
-                transaction_type='credit',
-                source='wallet_recharge',
                 amount=amount_decimal,
-                description=f"Added via RAzorpay|Payment ID:{payment_id}"
+                description=f"Added via Razorpay | Payment ID: {payment_id}",
+                source='wallet_recharge'
             )
-            
 
         return redirect('wallet')
-    return render(request,'profile')    
+
+    return render(request, 'profile')    
 
 @login_required
 def admin_wallet_transactions(request):
@@ -1603,7 +1620,7 @@ def order_detail(request, order_id):
     payment = Payment.objects.filter(order=order).first()
     items = order.items.all()
 
-    # Use order.status directly instead of recomputing
+   
     current_status = order.status if order.status in tracking_steps else "Pending"
 
     try:
@@ -1942,47 +1959,51 @@ def create_order(request):
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
     return JsonResponse({'error':'Invalid request method'},status=400)        
-
 @login_required
-def cancel_item(request,item_id):
-    item = get_object_or_404(OrderItem,id=item_id,order__user=request.user)
+def cancel_item(request, item_id):
+    item = get_object_or_404(OrderItem, id=item_id, order__user=request.user)
     order = item.order
-    wallet = Wallet.objects.get(user = request.user)
-
     if item.status == 'Cancelled':
-        messages.info(request,"This order is already cancelled")
-        return redirect('order_detail',order_id=order.id)
-
-
-    item.status = 'Cancelled'
-    item.save()
-    variation= item.variation
-    if variation:   
-        variation.stock += item.quantity
-        variation.save()
-
-    refund_amount = item.price*item.quantity    
-
-    if order.payment_method in ['Wallet','Razorpay']:
-        wallet.balance += refund_amount
-        wallet.save()
-        
-        WalletTransaction.objects.create(
-            user = request.user,
-            wallet = wallet,
-            transaction_type = "credit",
-            source = 'Order_cancel',
-            amount = refund_amount
-        )
-
-    if not order.items.exclude(status = "Cancelled").exists():
-        order.status="Cancelled"
-        order.save()   
-        messages.success(request,"Item canceled and amount refunded to the wallet")
-    else:
-       messages.info(request,"Item cancelled")
-    return redirect('myorders')    
-
+        messages.info(request, "This item is already fully cancelled")
+        return redirect('order_detail', order_id=order.id)
+    remaining = item.quantity - item.returned_quantity - getattr(item, 'cancelled_quantity', 0)
+    if remaining <= 0:
+        messages.warning(request, "No quantity left to cancel")
+        return redirect('order_detail', order_id=order.id)
+    if request.method == "POST":
+        cancel_qty = int(request.POST.get("cancel_qty"))
+        if cancel_qty <= 0 or cancel_qty > remaining:
+            messages.error(request, "Invalid cancel quantity")
+            return redirect('order_detail', order_id=order.id)
+        item.cancelled_quantity += cancel_qty
+        if item.cancelled_quantity == item.quantity:
+            item.status = "Cancelled"
+        else:
+            item.status = "Partially Cancelled"
+        item.save()
+        variation = item.variation
+        if variation:
+            variation.stock += cancel_qty
+            variation.save()
+        refund_amount = item.price * cancel_qty
+        if order.payment_method in ['Wallet', 'Razorpay']:
+            credit_wallet(
+                user=request.user,
+                amount=refund_amount,
+                description=f"Refund for cancelled {cancel_qty} item(s) in Order #{order.id}",
+                source='refund',
+                order=order
+            )
+        if not order.items.exclude(status="Cancelled").exists():
+            order.status = "Cancelled"
+            order.save()
+        messages.success(request, f"{cancel_qty} item(s) cancelled successfully")
+        return redirect('order_detail', order_id=order.id)
+    return render(request, "user/cancel_item.html", {
+        "item": item,
+        "order": order,
+        "remaining": remaining
+    })
 def payment_success(request):
     payment_id = request.GET.get('payment_id')
     user = request.user
@@ -2025,7 +2046,6 @@ def place_orders(request):
 
     user = request.user
     payment_method = request.POST.get('payment_method')
-    wallet = Wallet.objects.get(user=user)
 
     selected_address = request.POST.get('selected_address')
 
@@ -2131,81 +2151,67 @@ def place_orders(request):
             if coupon:
                 CouponUsage.objects.create(user=request.user,coupon=coupon)
                 request.session.pop('coupon_id',None)
-
             request.session['order_id'] = order.id
-
             return redirect('order_confirmation')
-
         else:
             order.delete()
             return redirect('checkout')
 
     elif payment_method == "cod":
-
         if total >50000:
             messages.error(request,"COD not available for more than 50000")
             return redirect("checkout")
-
         order.payment_method = "Cash on Delivery"
         order.status = "Processing"
         order.save()
-
         payment.status = "Pending"
         payment.payment_method = "COD"
         payment.save()
-
         finalize_order(order, cart_items)
-
         if coupon:
             CouponUsage.objects.create(user=request.user,coupon=coupon)
             request.session.pop('coupon_id',None)
-
         request.session['order_id'] = order.id
-
         return redirect('order_confirmation')
 
     elif payment_method == "Wallet":
 
-        if wallet.balance >= total:
+        first_item = cart_items.first()
+        if cart_items.count() > 1:
+            product_info = f"{first_item.product.name} + {cart_items.count()-1} more"
+        else:
+            product_info = first_item.product.name
 
-            wallet.balance -= total
-            wallet.save()
-
-            WalletTransaction.objects.create(user=request.user,wallet = wallet,transaction_type='debit',source='order_payment',amount=order.total)
+        success = debit_wallet(
+        user=request.user,
+        amount=total,
+        description=f"Payment for {product_info} (Order #{order.id})",
+        source='order payment',
+        order=order 
+        )
+        if success:
 
             order.payment_method = "Wallet"
             order.status = "Processing"
             order.save()
-
             payment.status = "Success"
             payment.payment_method = "Wallet"
             payment.transaction_id = f"WALLET-{order.id}"
             payment.save()
-
             finalize_order(order, cart_items)
-
             if coupon:
                 CouponUsage.objects.create(user=request.user,coupon=coupon)
                 request.session.pop('coupon_id',None)
-
             messages.success(request, "Payment successful using Wallet")
-
             request.session['order_id'] = order.id
-
             return redirect('order_confirmation')
-
         else:
-
             order.delete()
-
             messages.error(request, "Insufficient wallet balance")
-
             return redirect('checkout')
-
     order.delete()
 
     messages.error(request, "Invalid payment method")
-
     return redirect('checkout')
 
 
@@ -2213,24 +2219,19 @@ def place_orders(request):
 def razorpay_webhook(request):
 
     if request.method == "POST":
-
         client = razorpay.Client(
             auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
         )
-
         webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
         body = request.body
         signature = request.headers.get("X-Razorpay-Signature")
-
         try:
             client.utility.verify_webhook_signature(
                 body,
                 signature,
                 webhook_secret
             )
-
             data = json.loads(body)
-
             if data["event"] == "payment.captured":
                 payment_entity = data["payload"]["payment"]["entity"]["order_id"]
                 razorpay_order_id = payment_entity["order_id"]
@@ -2238,28 +2239,20 @@ def razorpay_webhook(request):
                 order = Order.objects.get(razorpay_order_id=razorpay_order_id)
                 order.status = "SUCCESS"
                 order.save()
-
                 payment = Payment.objects.get(order=order)
                 if payment.status != "Success":
-
                     payment.transaction_id = razorpay_payment_id
                     payment.status = "Success"
                     payment.save()
-
                     order.status = "Processing"
                     order.save()
-
-
             elif data["event"] == "payment.failed":
                 payment_entity = data["payload"]["payment"]["entity"]["order_id"]
-
                 order = Order.objects.get(razorpay_order_id=razorpay_order_id)
                 payment = Payment.objects.get(order=order)
                 order.status = "FAILED"
                 order.save()
-
             return HttpResponse(status=200)
-
         except:
             return HttpResponse(status=400)
 
@@ -2267,45 +2260,48 @@ def razorpay_webhook(request):
 def download_invoice_pdf(request,order_id):
     order = Order.objects.get(id=order_id,user=request.user)
     order_items = OrderItem.objects.filter(order=order)
-
     template_path = 'user/invoice.html'
     context = {
         'order':order,
         'order_items':order_items,
         'address':order.address,
     }
-
     template = get_template(template_path)
     html = template.render(context)
-
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f"attachment; filname ='invoice_{order.id}.pdf"
-
     pisa_status = pisa.CreatePDF(html,dest=response)
-
     if pisa_status.err:
         return HttpResponse('Error generating PDF',status=500)
-
     return response 
 
 @login_required
 def return_item(request, item_id):
     item = get_object_or_404(OrderItem, id=item_id, order__user=request.user)
 
-    if item.status != "Delivered":
+    if item.status != "Delivered" and item.status != "Partially Returned":
         messages.warning(request, "Only delivered items can be returned")
         return redirect('myorders')
 
-    if request.method == 'POST':
-        reason = request.POST.get('reason')
+    remaining = item.quantity - item.returned_quantity
 
-        if ReturnRequest.objects.filter(item=item, status__in=['Pending', 'Accepted']).exists():
-            messages.warning(request, "Return already requested for this item")
+    if remaining <= 0:
+        messages.warning(request, "All quantities already returned")
+        return redirect('myorders')
+    
+    if request.method == 'POST':
+        print("POST DATA:", request.POST)
+        reason = request.POST.get('reason')
+        qty = int(request.POST.get('return_qty'))
+         
+        if qty <= 0 or qty > remaining:
+            messages.error(request, "Invalid return quantity")
             return redirect('myorders')
 
         ReturnRequest.objects.create(
             item=item,
             user=request.user,
+            quantity=qty,
             reason=reason,
             status='Pending'
         )
@@ -2313,10 +2309,14 @@ def return_item(request, item_id):
         item.status = "Return Requested"
         item.save()
 
-        messages.success(request, f"Return request sent for item #{item.id}")
+        messages.success(request, f"Return request sent for {qty} item(s)")
         return redirect('myorders')
 
-    return render(request, 'user/return_item.html', {'item': item, 'order': item.order})               
+    return render(request, 'user/return_item.html', {
+        'item': item,
+        'order': item.order,
+        'remaining': remaining
+    })       
 
 @login_required
 def return_requests(request):
@@ -2326,47 +2326,49 @@ def return_requests(request):
 @login_required
 def update_return_status(request, request_id, action):
     return_request = get_object_or_404(ReturnRequest, id=request_id)
+
     order = return_request.item.order
     item = return_request.item
     user = return_request.user
 
     if action == 'accept':
+
         return_request.status = 'Accepted'
         item.status = 'Returned'
         item.save()
 
-        refund_amount = item.price * item.quantity
-        if order.payment_method in ["Wallet", "Razorpay"]:
-            wallet, created = Wallet.objects.get_or_create(user=user)
-            wallet.balance += refund_amount
-            wallet.save()
+        variation = item.variation
+        if variation:
+            variation.stock += item.quantity
+            variation.save()
 
-            WalletTransaction.objects.create(
+        refund_amount = item.price * item.quantity
+
+        description = f"Refund for {item.product.name} (Order #{order.id})"
+
+        if order.payment_method in ["Wallet", "Razorpay"]:
+            credit_wallet(
                 user=user,
-                wallet=wallet,
-                transaction_type="credit",
-                source="order_return",
-                amount=refund_amount
+                amount=refund_amount,
+                description=description,
+                source="refund",
+                order=order
             )
 
             Notification.objects.create(
                 user=user,
-                message=f"₹{refund_amount} has been refunded to your wallet for returned item #{item.id}."
+                message=f"₹{refund_amount} refunded for {item.product.name} (Order #{order.id})"
             )
 
         if not order.items.exclude(status="Returned").exists():
             order.status = 'Returned'
             order.save()
 
-            variation = item.variation  
-            variation.stock += item.quantity
-            variation.save()
-
     elif action == 'reject':
         return_request.status = 'Rejected'
 
     return_request.save()
-    return redirect('return_requests')   
+    return redirect('return_requests')
 
 @login_required
 def sales_report(request):
@@ -2374,10 +2376,9 @@ def sales_report(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     filter_type = request.GET.get('filter_type')
-
     if start_date and end_date:
         start_date = datetime.strptime(start_date,"%Y-%m-%d").date()
-       
+    
         end_date = datetime.strptime(end_date,"%Y-%m-%d").date()
     else:
         if filter_type == 'daily':
@@ -2391,22 +2392,18 @@ def sales_report(request):
         else:
             start_date=today
             end_date = today      
-
     orders = Order.objects.filter(
         created_at__date__gte=start_date,
         created_at__date__lte=end_date,
-    
+  
     )      
-
     total_revenue = orders.aggregate(Sum('total'))['total__sum'] or 0                
     total_orders = orders.count()
     total_discount = orders.aggregate(Sum('discount'))['discount__sum'] or 0
-
     sales_data = (orders.annotate(date=TruncDate('created_at')).values('date').annotate(total=Sum('total')).order_by('date'))
-
     dates = [entry['date'].strftime('%d %b') for entry in sales_data]
     revenues = [float(entry['total']) for entry in sales_data]
-       
+     
     context = {
         'orders':orders,
         'total_orders':total_orders,
@@ -2418,7 +2415,6 @@ def sales_report(request):
         'chart_dates': dates,
         'chart_revenues': revenues,
     }
-
     return render(request,'admin_templates/sales_report.html',context)
 
 @login_required
@@ -2426,53 +2422,39 @@ def download_sales_pdf(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     filter_type = request.GET.get('filter_type')
-
     today = timezone.now().date()
-
     if start_date and end_date:
         start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
-
     elif filter_type == 'daily':
         start_date = end_date = today
-
     elif filter_type == 'weekly':
         start_date = today - timedelta(days=7)
         end_date = today
-
     elif filter_type == 'monthly':
         start_date = today.replace(day=1)
         end_date = today
-
     else:
         start_date = end_date = today    
-    
+  
     orders = Order.objects.filter(created_at__date__gte=start_date,created_at__date__lte=end_date)
-
     total_orders = orders.count()
     total_revenue = orders.aggregate(Sum('total'))['total__sum'] or 0
     total_discount = orders.aggregate(Sum('discount'))['discount__sum'] or 0   
-    
-    
+
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="sales_report.pdf"'
-
     doc = SimpleDocTemplate(response, pagesize=A4)
     styles = getSampleStyleSheet()
     elements = []
-
     elements.append(Paragraph("Sales Report", styles['Title']))
     elements.append(Paragraph(f"From: {start_date} To: {end_date}", styles['Normal']))
     elements.append(Paragraph(f"Total Orders: {total_orders}", styles['Normal']))
     elements.append(Paragraph(f"Total Revenue: {total_revenue:.2f}", styles['Normal']))
     elements.append(Paragraph(f"Total Discount: {total_discount:.2f}", styles['Normal']))
-
     elements.append(Paragraph(" ", styles['Normal']))
-
-    
+   
     data = [["Order ID", "Customer", "Total Amount", "Discount", "Date"]]
-
-    
     for order in orders:
         data.append([
             str(order.id),

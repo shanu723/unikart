@@ -104,8 +104,8 @@ class Variation(models.Model):
     
 class Highlight(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='highlights')
-    key = models.CharField(max_length=50)    # e.g., "RAM", "Display Size"
-    value = models.CharField(max_length=200) # e.g., "4GB", "55 inches"
+    key = models.CharField(max_length=50)    
+    value = models.CharField(max_length=200) 
 
     def __str__(self):
         return f"{self.key}: {self.value}"
@@ -131,7 +131,7 @@ class ProductImages(models.Model):
             img.save(self.product_image.path)
             
         except Exception as e:
-            print(f"Image resize failed:{e}")      # Just log the error
+            print(f"Image resize failed:{e}")     
 
     def __str__(self):
         return f"{self.product.name} - Image"
@@ -243,12 +243,16 @@ class OrderItem(models.Model):
         ("Delivered","Delivered"),
         ("Cancelled","Cancelled"),
         ("Returned","Returned"),
+        ("Partially Cancelled","Partially Cancelled"), 
+        ("Partially Returned","Partially Returned"),
     ]
 
     order=models.ForeignKey(Order,related_name='items',on_delete=models.CASCADE)
     product=models.ForeignKey(Product,on_delete=models.CASCADE)
     variation = models.ForeignKey(Variation, on_delete=models.CASCADE, null=True, blank=True)
     quantity=models.PositiveIntegerField(default=1)
+    returned_quantity = models.PositiveIntegerField(default=0)
+    cancelled_quantity = models.PositiveIntegerField(default=0)
     price=models.DecimalField(max_digits=10,decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Ordered")
 
@@ -264,6 +268,7 @@ class ReturnRequest(models.Model):
     item = models.ForeignKey(OrderItem, on_delete=models.CASCADE)
     user = models.ForeignKey(User,on_delete=models.CASCADE)
     reason = models.TextField()
+    quantity = models.PositiveIntegerField()
     status = models.CharField(max_length=10,choices=STATUS_CHOICES,default='Pending')
     created_at = models.DateTimeField(default=timezone.now) 
 
@@ -368,9 +373,11 @@ class Wallet(models.Model):
 class WalletTransaction(models.Model):
 
     TRANSACTION_TYPE = (('credit', 'Credit'), ('debit', 'Debit'))
-    SOURCE_TYPE = (('wallet_recharge', 'Wallet Recharge'), ('order_payment', 'Order Payment'), ('refund', 'Refund'))
+    SOURCE_TYPE = (('wallet_recharge', 'Wallet Recharge'), ('order_payment', 'Order Payment'), ('refund', 'Refund'),('signup_bonus', 'Signup Bonus'),
+    ('referral_bonus', 'Referral Bonus'),)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="wallet_transactions")
     wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name="transactions")
+    order = models.ForeignKey('Order', on_delete=models.SET_NULL, null=True, blank=True)
     transaction_id = models.CharField(max_length=50, unique=True, editable=False)
     transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE)
     source = models.CharField(max_length=20, choices=SOURCE_TYPE)

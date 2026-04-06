@@ -162,17 +162,26 @@
                         </div>
                         <!-- Header Right -->
                         <div class="header-right">
-                            <ul>
-                                <!--li>
-                                    <div class="nav-search search-switch">
-                                        <span class="flaticon-search"></span>
-                                    </div>
-                                </li-->
-                                
-                                <li><a class="nav-link cart-icon" href="{% url 'cart' %}">🛒</a> </li>
-                            </ul>
-                        </div>
-                    </div>
+    <ul class="d-flex align-items-center">
+
+       
+
+        {% if not user.is_authenticated %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'login' %}">
+                <span class="flaticon-user"></span>
+            </a>
+        </li>
+        {% endif %}
+
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'cart' %}">
+                <span class="flaticon-shopping-cart"></span>
+            </a>
+        </li>
+
+    </ul>
+</div>
                     <!-- Mobile Menu -->
                     <div class="col-12">
                         <div class="mobile_menu d-block d-lg-none"></div>
@@ -195,10 +204,10 @@
                             <div class="col-xl-8 col-lg-8 col-md-8 col-sm-8">
                                 <div class="hero__caption">
                                     <h1 data-animation="fadeInLeft" data-delay=".4s" data-duration="2000ms">Select Your New Perfect Television</h1>
-                                    <p data-animation="fadeInLeft" data-delay=".7s" data-duration="2000ms">Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat is aute irure.</p>
+                                    <p data-animation="fadeInLeft" data-delay=".7s" data-duration="2000ms">"Discover the television that perfectly fits your lifestyle. Compare features, sizes, and picture quality to find a TV that transforms your viewing experience."</p>
                                     <!-- Hero-btn -->
                                     <div class="hero__btn" data-animation="fadeInLeft" data-delay=".8s" data-duration="2000ms">
-                                        <a href="industries.html" class="btn hero-btn">Shop Now</a>
+                                        <a href="{% url 'shop' %}" class="btn hero-btn">Shop Now</a>
                                     </div>
                                 </div>
                             </div>
@@ -470,7 +479,7 @@
                     <div class="col-lg-5 col-md-6">
                         <div class="watch-details mb-40">
                             <h2>High Resolution TV</h2>
-                            <p>Enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse.</p>
+                            <p>“Experience every detail like never before with crystal-clear high-resolution visuals that bring your favorite shows and movies to life.”</p>
                             <a href="{% url 'shop' %}" class="btn">Show</a>
                         </div>
                     </div>
@@ -489,7 +498,7 @@
                     <div class="col-lg-5 col-md-6">
                         <div class="watch-details mb-40">
                             <h2>Smart TV</h2>
-                            <p>Enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse.</p>
+                            <p>“Dive into stunning clarity and vibrant colors with TVs designed to deliver the ultimate viewing experience.”</p>
                             <a href="shop.html" class="btn">Show </a>
                         </div>
                     </div>
@@ -506,21 +515,21 @@
                             <div class="single-method mb-40">
                                 <i class="ti-package"></i>
                                 <h6>Free Shipping Method</h6>
-                                <p>aorem ixpsacdolor sit ameasecur adipisicing elitsf edasd.</p>
+                                <p>“Get your new TV delivered to your doorstep at no extra cost — fast, reliable, and hassle-free.”</p>
                             </div>
                         </div>
                         <div class="col-xl-4 col-lg-4 col-md-6">
                             <div class="single-method mb-40">
                                 <i class="ti-unlock"></i>
                                 <h6>Secure Payment System</h6>
-                                <p>aorem ixpsacdolor sit ameasecur adipisicing elitsf edasd.</p>
+                                <p>“Shop with confidence knowing your payment is fully protected with the latest security measures.”</p>
                             </div>
                         </div> 
                         <div class="col-xl-4 col-lg-4 col-md-6">
                             <div class="single-method mb-40">
                                 <i class="ti-reload"></i>
-                                <h6>Secure Payment System</h6>
-                                <p>aorem ixpsacdolor sit ameasecur adipisicing elitsf edasd.</p>
+                                <h6>Safe Dlivery and Return </h6>
+                                <p>“We ensure your TV arrives safely, carefully packaged, and in perfect condition.”</p>
                             </div>
                         </div>
                     </div>
@@ -539,9 +548,7 @@
                         <div class="single-footer-caption mb-50">
                             <div class="single-footer-caption mb-30">
                                 <!-- logo -->
-                                <div class="footer-logo">
-                                    <a href="index.html"><img src="{% static 'assets/img/logo/logo2_footer.png' %}" alt=""></a>
-                                </div>
+                               
                                 <div class="footer-tittle">
                                     <div class="footer-pera">
                                         <p>Asorem ipsum adipolor sdit amet, consectetur adipisicing elitcf sed do eiusmod tem.</p>

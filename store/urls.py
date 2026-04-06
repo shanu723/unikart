@@ -39,7 +39,7 @@ urlpatterns = [
     path('cart/remove/<int:item_id>/', views.remove_cart_item, name='remove_cart_item'),
     path('create_order',views.create_order,name='create_order'),
     path('place_order/',views.place_orders,name='place_order'),
-    path('cancel_item/<int:item_id>/',views.cancel_item,name='cancel_item'),
+    path('cancel-item/<int:item_id>/',views.cancel_item,name='cancel_item'),
     path('download-invoice/<int:order_id>/', views.download_invoice_pdf, name='download_invoice_pdf'),
     path("razorpay/webhook/", views.razorpay_webhook),
     path('payment_success/', views.payment_success, name='payment_success'),
