@@ -63,74 +63,71 @@
 
           <div class="table-responsive">
 
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Variation</th>
-                  <th>Qty</th>
-                  <th>Price</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
+           <table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Product</th>
+      <th>Variation</th>
+      <th>Qty</th>
+      <th>Price</th>
+      <th>Total</th>
+      <th>Status</th>
+      <th>Action</th>
+    </tr>
+  </thead>
 
-              <tbody>
+  <tbody>
+    {% for item in order.items.all %}
+    <tr>
+      <td>{{ item.product.name }}</td>
+      <td>{{ item.variation }}</td>
+      <td>{{ item.quantity }}</td>
+      <td>₹{{ item.price }}</td>
+      <td>₹{{ item.price|floatformat:2 }} × {{ item.quantity }}</td>
 
-                {% for item in order.items.all %}
+      <!-- Current Status + Inline Partial Cancel/Return -->
+      <td>
+        <span class="badge badge-outline-primary">{{ item.status }}</span>
 
-                <tr>
-                  <td>{{ item.product.name }}</td>
-                  <td>{{ item.variation }}</td>
-                  <td>{{ item.quantity }}</td>
-                  <td>₹{{ item.price }}</td>
-                  <td>₹{{ item.price|floatformat:2 }} × {{ item.quantity }}</td>
+        {% if item.cancelled_quantity %}
+          <br><small style="color:red;">Cancelled: {{ item.cancelled_quantity }}</small>
+        {% endif %}
 
-                  <!-- Current Status -->
-                  <td>
-                    <span class="badge badge-outline-primary">
-                      {{ item.status }}
-                    </span>
-                  </td>
+        {% if item.returned_quantity %}
+          <br><small style="color:purple;">Returned: {{ item.returned_quantity }}</small>
+        {% endif %}
 
-                  <!-- Update Status -->
-                  <td>
-                    <form method="POST" action="{% url 'update_item_status' item.id %}">
-                      {% csrf_token %}
+        {% with remaining=item.quantity|add:"-item.cancelled_quantity"|add:"-item.returned_quantity" %}
+          {% if remaining > 0 %}
+            <br><small style="color:green;">Remaining: {{ remaining }}</small>
+          {% endif %}
+        {% endwith %}
+      </td>
 
-                      <select name="status" class="form-control form-control-sm">
+      <!-- Update Status -->
+      <td>
+        <form method="POST" action="{% url 'update_item_status' item.id %}">
+          {% csrf_token %}
 
-                        <option value="" disabled selected>
-                          Change status
-                        </option>
+          <select name="status" class="form-control form-control-sm">
+            <option value="" disabled selected>Change status</option>
+            {% for status in item.allowed_status %}
+              <option value="{{ status }}">{{ status }}</option>
+            {% endfor %}
+          </select>
 
-                        {% for status in item.allowed_status %}
-  <option value="{{ status }}">{{ status }}</option>
-{% endfor %}
+          <button type="submit" class="btn btn-sm btn-primary mt-1">Update</button>
+        </form>
+      </td>
 
-                      </select>
-
-                      <button type="submit" class="btn btn-sm btn-primary mt-1">
-                        Update
-                      </button>
-
-                    </form>
-                  </td>
-
-                </tr>
-
-                {% empty %}
-
-                <tr>
-                  <td colspan="7" class="text-center">No products found</td>
-                </tr>
-
-                {% endfor %}
-
-              </tbody>
-
-            </table>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="7" class="text-center">No products found</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
           </div>
 
