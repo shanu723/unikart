@@ -63,7 +63,7 @@
 ========================= */
   .modal-dialog {
     position: relative !important;
-    z-index: 1 !important;
+    z-index: auto !important;
   }
 
   /* =========================
@@ -72,6 +72,13 @@
   body {
     overflow-x: hidden;
   }
+  .modal {
+  z-index: 20000 !important;
+}
+
+.modal-backdrop {
+  z-index: 19999 !important;
+}
 </style>
 <div class="container py-4">
 
