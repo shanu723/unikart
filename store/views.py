@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
 from django.core.mail import send_mail
 from django.utils import timezone
-from datetime import timedelta,datetime
+from datetime import timedelta,datetime,time
 import openpyxl
 import copy
 from openpyxl.utils import get_column_letter
@@ -17,7 +17,7 @@ from django.shortcuts import render,redirect
 from django.contrib.auth.decorators import login_required,user_passes_test
 from django.contrib.auth import authenticate, login,logout
 from django.db import transaction
-from django.db.models import Min,Max,Sum,Prefetch
+from django.db.models import Min,Max,Sum,Prefetch,F
 from django.contrib import messages
 from datetime import timedelta
 from .models import *
@@ -304,9 +304,7 @@ def admin_dashboard(request):
     top_products = ProductSalesReport.objects.order_by('-total_quantity_sold')[:10]
     top_categories = CategorySalesReport.objects.order_by('-total_revenue')[:10]
     total_coupons_used = Order.objects.filter(discount__gt=0, status='Delivered').count()
-
-    
-
+   
     context = {
         'total_sales': total_sales,
         'total_orders': total_orders,
@@ -2368,17 +2366,20 @@ def update_return_status(request, request_id, action):
     return_request.save()
     return redirect('return_requests')
 
+
 @login_required
 def sales_report(request):
-    today = timezone.now().date()
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
-    filter_type = request.GET.get('filter_type')
-    if start_date and end_date:
-        start_date = datetime.strptime(start_date,"%Y-%m-%d").date()
-    
-        end_date = datetime.strptime(end_date,"%Y-%m-%d").date()
-    else:
+    today = timezone.localdate()
+    filter_type = request.GET.get('filter_type', '')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    if start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            start_date = end_date = today
+    elif filter_type:
         if filter_type == 'daily':
             start_date = end_date = today
         elif filter_type == 'weekly':
@@ -2386,41 +2387,46 @@ def sales_report(request):
             end_date = today
         elif filter_type == 'monthly':
             start_date = today.replace(day=1)
-            end_date = today   
+            end_date = today
         else:
-            start_date=today
-            end_date = today      
+            start_date = end_date = today
+    else:
+        start_date = end_date = today
+    start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
+    end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
     orders = Order.objects.filter(
-        created_at__date__gte=start_date,
-        created_at__date__lte=end_date,
-  
-    )      
-    total_revenue = orders.aggregate(Sum('total'))['total__sum'] or 0                
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).order_by('created_at')
+    total_revenue = orders.aggregate(Sum('total'))['total__sum'] or 0
     total_orders = orders.count()
     total_discount = orders.aggregate(Sum('discount'))['discount__sum'] or 0
-    sales_data = (orders.annotate(date=TruncDate('created_at')).values('date').annotate(total=Sum('total')).order_by('date'))
-    dates = [entry['date'].strftime('%d %b') for entry in sales_data]
-    revenues = [float(entry['total']) for entry in sales_data]
-     
+    sales_data = orders.annotate(date_only=TruncDate('created_at')) \
+                       .values('date_only') \
+                       .annotate(total=Sum('total')) \
+                       .order_by('date_only')
+    dates = [entry['date_only'].strftime('%d %b') for entry in sales_data if entry['date_only']]
+    revenues = [float(entry['total']) for entry in sales_data if entry['date_only']]
     context = {
-        'orders':orders,
-        'total_orders':total_orders,
-        'total_revenue':total_revenue,
-        'total_discount':total_discount,
-        'start_date':start_date,
-        'end_date':end_date,
-        'filter_type':filter_type,
+        'orders': orders,
+        'total_orders': total_orders,
+        'total_revenue': total_revenue,
+        'total_discount': total_discount,
+        'start_date': start_date,
+        'end_date': end_date,
+        'filter_type': filter_type,
         'chart_dates': dates,
         'chart_revenues': revenues,
     }
-    return render(request,'admin_templates/sales_report.html',context)
+    return render(request, 'admin_templates/sales_report.html', context)
+
 
 @login_required
 def download_sales_pdf(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     filter_type = request.GET.get('filter_type')
-    today = timezone.now().date()
+    today = timezone.localdate()
     if start_date and end_date:
         start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
@@ -2433,13 +2439,16 @@ def download_sales_pdf(request):
         start_date = today.replace(day=1)
         end_date = today
     else:
-        start_date = end_date = today    
-  
-    orders = Order.objects.filter(created_at__date__gte=start_date,created_at__date__lte=end_date)
+        start_date = end_date = today
+    start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
+    end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
+    orders = Order.objects.filter(
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
+    ).order_by('created_at')
     total_orders = orders.count()
     total_revenue = orders.aggregate(Sum('total'))['total__sum'] or 0
-    total_discount = orders.aggregate(Sum('discount'))['discount__sum'] or 0   
-
+    total_discount = orders.aggregate(Sum('discount'))['discount__sum'] or 0
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = 'attachment; filename="sales_report.pdf"'
     doc = SimpleDocTemplate(response, pagesize=A4)
@@ -2448,20 +2457,19 @@ def download_sales_pdf(request):
     elements.append(Paragraph("Sales Report", styles['Title']))
     elements.append(Paragraph(f"From: {start_date} To: {end_date}", styles['Normal']))
     elements.append(Paragraph(f"Total Orders: {total_orders}", styles['Normal']))
-    elements.append(Paragraph(f"Total Revenue: {total_revenue:.2f}", styles['Normal']))
-    elements.append(Paragraph(f"Total Discount: {total_discount:.2f}", styles['Normal']))
+    elements.append(Paragraph(f"Total Revenue: Rs.{total_revenue:.2f}", styles['Normal']))
+    elements.append(Paragraph(f"Total Discount: Rs.{total_discount:.2f}", styles['Normal']))
     elements.append(Paragraph(" ", styles['Normal']))
-   
     data = [["Order ID", "Customer", "Total Amount", "Discount", "Date"]]
     for order in orders:
+        created = order.created_at.strftime("%Y-%m-%d") if order.created_at else "-"
         data.append([
             str(order.id),
             str(order.user.username),
             f"{order.total}",
             f"{order.discount or 0}",
-            order.created_at.strftime("%Y-%m-%d")
+            created
         ])
-
     table = Table(data)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.lightblue),
@@ -2471,18 +2479,16 @@ def download_sales_pdf(request):
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
     ]))
     elements.append(table)
-
     doc.build(elements)
     return response
+
 
 @login_required
 def download_sales_excel(request):
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
     filter_type = request.GET.get('filter_type')
-
-    today = timezone.now().date()
-
+    today = timezone.localdate()
     if start_date and end_date:
         start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
         end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
@@ -2496,51 +2502,45 @@ def download_sales_excel(request):
         end_date = today
     else:
         start_date = end_date = today
-
+    start_datetime = timezone.make_aware(datetime.combine(start_date, time.min))
+    end_datetime = timezone.make_aware(datetime.combine(end_date, time.max))
     orders = Order.objects.filter(
-        created_at__date__gte=start_date,
-        created_at__date__lte=end_date
+        created_at__gte=start_datetime,
+        created_at__lte=end_datetime
     ).order_by('-created_at')
-
     total_orders = orders.count()
     total_revenue = orders.aggregate(Sum('total'))['total__sum'] or 0
     total_discount = orders.aggregate(Sum('discount'))['discount__sum'] or 0
-
     workbook = openpyxl.Workbook()
     worksheet = workbook.active
     worksheet.title = "Sales Report"
-
     worksheet.append(["Sales Report"])
     worksheet.append([f"From: {start_date} To: {end_date}"])
     worksheet.append([f"Total Orders: {total_orders}"])
     worksheet.append([f"Total Revenue: ₹{total_revenue:.2f}"])
     worksheet.append([f"Total Discount: ₹{total_discount:.2f}"])
     worksheet.append([])
-
     headers = ["Order ID", "Customer", "Total Amount", "Discount", "Date"]
     worksheet.append(headers)
-
     for cell in worksheet[7]:
         cell.font = Font(bold=True)
-
     for order in orders:
+        created = order.created_at.strftime("%Y-%m-%d") if order.created_at else "-"
         worksheet.append([
             order.id,
             order.user.username,
             float(order.total),
             float(order.discount or 0),
-            order.created_at.strftime('%Y-%m-%d')
+            created
         ])
-
+  
     for column_cells in worksheet.columns:
         length = max(len(str(cell.value)) if cell.value else 0 for cell in column_cells)
         worksheet.column_dimensions[column_cells[0].column_letter].width = length + 5
-
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     response['Content-Disposition'] = 'attachment; filename="sales_report.xlsx"'
-
     workbook.save(response)
     return response
 
