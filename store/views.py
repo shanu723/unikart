@@ -9,6 +9,7 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from datetime import timedelta,datetime
 import openpyxl
+import copy
 from openpyxl.utils import get_column_letter
 from .models import Order
 from django.urls import reverse
@@ -39,7 +40,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models.functions import TruncDate
 from store.utils import get_best_price,generate_daily_sales_report
 from xhtml2pdf import pisa
-
+from reportlab.pdfgen import canvas
 
 def home(request):
     return render(request,'index.html') 
@@ -793,13 +794,6 @@ def products(request):
     products=Product.objects.all()
     return render(request,'admin_templates/products.html',{'products':products})    
 
-@login_required
-def cus_order_details(request,id):
-    order = Order.objects.get(id=id)
-    items = order.items.all()
-    
-    context ={'order':order,'items':items}
-    return render(request,'admin_templates/cus_order_details.html',context)
 
 
 @login_required    
@@ -1354,10 +1348,9 @@ def add_address(request):
         district=request.POST.get('district')
         state=request.POST.get('state')
         pincode=request.POST.get('pincode')
-        
+  
         is_default=request.POST.get('is_default')=='on'
-
-        if not re.match(r'^[A-Za-z\s,.\-/#]+$', street):
+        if not re.match(r'^[A-Za-z1-9\s,.\-/#]+$', street):
             messages.error(request,'Street must be atleast 5 letters')
             return redirect('profile')
         if not city.replace(" ","").isalpha():
@@ -1369,12 +1362,8 @@ def add_address(request):
         if not re.match(r'^\d{6}$',pincode):          
             messages.error(request,"Pincode must be exactly 6 digits")
             return redirect('profile')
-
-
         if is_default:
             Address.objects.filter(user=request.user,is_default=True).update(is_default=False)
-
-
         Address.objects.create(
             user=request.user,
             street=street,
@@ -1382,17 +1371,14 @@ def add_address(request):
             district=district,
             state=state,
             pincode=pincode,
-            
+ 
             is_default=is_default
-
         )    
-
         return redirect('profile')
     return redirect('profile')
 @login_required
 def edit_address(request,address_id):
     address=get_object_or_404(Address,id=address_id,user=request.user)
-
     if request.method=='POST':
         address.street=request.POST.get('street')  
         address.city=request.POST.get('city') 
@@ -1400,35 +1386,29 @@ def edit_address(request,address_id):
         address.state=request.POST.get('state') 
         address.pincode=request.POST.get('pincode') 
         address.street=request.POST.get('street') 
-        
+      
         address.is_default=request.POST.get('is_default')=='on' 
-
         if len(address.street) < 5:
             messages.error(request, "Street must be at least 5 characters")
             return redirect('profile')
-
         if not address.city.replace(" ", "").isalpha():
             messages.error(request, "City should contain only letters")
             return redirect('profile')
-
         if not address.district.replace(" ", "").isalpha():
             messages.error(request, "District should contain only letters")
             return redirect('profile')
-
         if not address.state.replace(" ", "").isalpha():
             messages.error(request, "State should contain only letters")
             return redirect('profile')
-
         if not re.match(r'^\d{6}$', address.pincode):
             messages.error(request, "Invalid pincode")
             return redirect('profile') 
-   
+
         if address.is_default:
             Address.objects.filter(user=request.user, is_default=True).exclude(id=address.id).update(is_default=False)
-  
+
         address.save()
         return redirect('profile')
-
     return redirect('profile')    
 
 @login_required
@@ -1448,29 +1428,22 @@ def set_default_address(request,address_id):
 def send_email_otp(request):
     email = request.POST.get("email")
     user = request.user
-
     if not email:
         return JsonResponse({"success": False, "message": "Email required"})
-
     otp = str(random.randint(100000, 999999))
-
     EmailOTP.objects.filter(user=user, email=email).delete()
-
     EmailOTP.objects.create(
         user=user,
         email=email,
         otp=otp
     )
-
     request.session["pending_email"] = email
-
     send_mail(
         "Email Verification OTP",
         f"Your OTP is {otp}. Valid for 5 minutes.",
         "noreply@yourapp.com",
         [email]
     )
-
     return JsonResponse({"success": True, "message": "OTP sent successfully"})
 
 def verify_email_otp(request):
@@ -1498,30 +1471,24 @@ def verify_email_otp(request):
 
 def resend_email_otp(request):
     email = request.session.get("pending_email")
-
     if not email:
         return JsonResponse({"success": False, "message": "No pending email"})
-
     otp = str(random.randint(100000, 999999))
-
     EmailOTP.objects.filter(
         user=request.user,
         email=email
     ).delete()
-
     EmailOTP.objects.create(
         user=request.user,
         email=email,
         otp=otp
     )
-
     send_mail(
         "Resend Email OTP",
         f"Your new OTP is {otp}.",
         "noreply@yourapp.com",
         [email]
     )
-
     return JsonResponse({"success": True, "message": "OTP resent"})
    
 @login_required
@@ -1550,19 +1517,16 @@ def add_money_to_wallet(request):
         amount_rupees = Decimal(request.POST.get('amount'))
         amount_paisa = int(amount_rupees * 100)
         wallet, created = Wallet.objects.get_or_create(user=request.user)
-
         razorpay_order = client.order.create({
             'amount': amount_paisa,
             'currency':'INR',
             'payment_capture':'1'
         })
-
         return JsonResponse({
             "razorpay_order_id": razorpay_order["id"],
             "razorpay_key_id": settings.RAZORPAY_KEY_ID,
             "amount": amount_paisa
         })
-
     return JsonResponse({"error":"Invalid request"},status=400)      
 
 @csrf_exempt
@@ -1571,42 +1535,49 @@ def wallet_payment_success(request):
         payment_id = request.POST.get('razorpay_payment_id')
         order_id = request.POST.get('razorpay_order_id')
         amount = request.POST.get('amount')
-
         if payment_id and order_id and amount:
             amount_decimal = Decimal(amount)
-
             credit_wallet(
                 user=request.user,
                 amount=amount_decimal,
                 description=f"Added via Razorpay | Payment ID: {payment_id}",
                 source='wallet_recharge'
             )
-
         return redirect('wallet')
-
     return render(request, 'profile')    
 
 @login_required
 def admin_wallet_transactions(request):
-    transactions = WalletTransaction.objects.all().order_by('-created_at')
-    return render(request,'admin_templates/admin_wallet_transaction.html',{'transactions':transactions})    
+    wallets = Wallet.objects.select_related('user').all()
+    return render(request, 'admin_templates/admin_wallet_transaction.html', {'wallets': wallets})
+
+@login_required
+def admin_user_wallet(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    wallet = get_object_or_404(Wallet, user=user)
+    transactions = WalletTransaction.objects.filter(wallet=wallet).order_by('-created_at')
+
+    return render(request, 'admin_templates/admin_user_wallet.html', {
+        'wallet_user': user,
+        'wallet': wallet,
+        'transactions': transactions
+    })
+        
 @login_required  
 def myorders_view(request):
     status = request.GET.get('status', 'All')
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
-    
+  
     if status == "Cancelled":
         orders = orders.filter(items__status="Cancelled").distinct()
     elif status == "Returned":
         orders = orders.filter(items__status="Returned").distinct()
     elif status == "Delivered":
         orders = orders.filter(items__status="Delivered").distinct()    
-
     orders = orders.order_by('-created_at')
     paginator = Paginator(orders, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-
     return render(request, 'user/myorders.html', {
         'page_obj': page_obj,
         'current_status': status
@@ -1615,58 +1586,48 @@ def myorders_view(request):
 @login_required
 def order_detail(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
-
-    tracking_steps = ["Pending", "Processing", "Shipped", "Delivered"]
     payment = Payment.objects.filter(order=order).first()
     items = order.items.all()
-
-   
-    current_status = order.status if order.status in tracking_steps else "Pending"
-
-    try:
-        current_step_index = tracking_steps.index(current_status)
-    except ValueError:
-        current_step_index = 0
-
+    processed_items = []
+    is_revised = False   
+    for item in items:
+        cancelled_qty = item.cancelled_quantity or 0
+        returned_qty = item.returned_quantity or 0
+        if cancelled_qty > 0 or returned_qty > 0:
+            is_revised = True   
+        final_qty = item.quantity - cancelled_qty - returned_qty
+        item.final_quantity = final_qty
+        item.final_total = item.price * final_qty
+        processed_items.append(item)
     return render(request, 'user/order_details.html', {
         'order': order,
-        'tracking_steps': tracking_steps,
-        'current_step_index': current_step_index,
+        'items': processed_items,
         'payment': payment,
-        'order_status': current_status   
+        'order_status': order.status,
+        'is_revised': is_revised   
     })
-
-
 
 @login_required
 def return_item(request, item_id):
-
     item = get_object_or_404(OrderItem, id=item_id, order__user=request.user)
-
     if request.method == 'POST':
         reason = request.POST.get('reason')
-
         if ReturnRequest.objects.filter(item=item).exists():
             messages.warning(request, "Return already requested for this item")
             return redirect('myorders')
-
         ReturnRequest.objects.create(
             item=item,
             user=request.user,
             reason=reason,
             status='Pending'
         )
-
         item.status = "Return Requested"
         item.save()
-
         messages.success(
             request,
             f"Return request sent for item #{item.id}"
         )
-
         return redirect('myorders')
-
     return render(request, 'user/return_item.html', {'item': item,'order': item.order})
 
 @login_required(login_url='login')
@@ -1676,14 +1637,13 @@ def order_confirmation(request):
     if not order_id:
         messages.error(request,"No recent order found")
         return redirect('cart')
-
     try:
         order = Order.objects.get(id=order_id,user=request.user)
         order_items = OrderItem.objects.filter(order=order)
     except Order.DoesNotExist:
         messages.error(request,"Order not found")
         return redirect('cart')
-    
+ 
     del request.session['order_id']
     context = {
         'order':order,
@@ -1709,6 +1669,8 @@ def order_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     return render(request,'admin_templates/order_list.html',{'page_obj':page_obj})
+
+
 ORDER_FLOW = {
     "Ordered": ["Pending", "Processing", "Cancelled"],  
     "Pending": ["Processing", "Shipped", "Delivered"],
@@ -1716,79 +1678,92 @@ ORDER_FLOW = {
     "Processing": ["Shipped", "Delivered"],
     "Shipped": ["Delivered"],
     "Delivered": [],
-    "Cancelled": []
+    "Cancelled": [],
+    "Partially Cancelled": ["Processing", "Shipped", "Delivered"], 
+    "Partially Returned": ["Processing", "Shipped", "Delivered"],
 }
+
 @login_required
 def cus_order_details(request, order_id):
-
     order = (
         Order.objects
         .select_related("user")
         .prefetch_related("items__product", "items__variation")
         .get(id=order_id)
     )
-
+   
+    unit_items = []
     for item in order.items.all():
-        item.allowed_status = ORDER_FLOW.get(item.status, [])
+        cancelled = item.cancelled_quantity or 0
+        returned = item.returned_quantity or 0
+        for i in range(item.quantity):
+            unit = copy.deepcopy(item)  
+            unit.cancelled = i < cancelled
+            unit.returned = i < returned
+            unit.allowed_status = ORDER_FLOW.get(item.status, [])
+            unit.index = i
+            unit_items.append(unit)
+    return render(request, "admin_templates/cus_order_details.html", {
+        "order": order,
+        "unit_items": unit_items,
+    })
 
-
-    return render(
-        request,
-        "admin_templates/cus_order_details.html",
-        {
-            "order": order,
-           
-        }
-    )
-    
 @login_required
 def update_item_status(request, item_id):
-
     item = get_object_or_404(OrderItem, id=item_id)
     order = item.order
-
     if request.method == "POST":
-
         new_status = request.POST.get("status")
-
         if not new_status:
             messages.error(request, "Please select a status")
             return redirect("cus_order_details", order_id=order.id)
-
+      
+        cancelled_qty = item.cancelled_quantity or 0
+        returned_qty = item.returned_quantity or 0
+        remaining = item.quantity - cancelled_qty - returned_qty
+        if remaining <= 0:
+            messages.warning(request, "No units left to update")
+            return redirect("cus_order_details", order_id=order.id)
+       
         allowed_next = ORDER_FLOW.get(item.status, [])
-
-        if new_status in allowed_next:
-          
-            item.status = new_status
-            item.save()
-        
-            all_items = order.items.all()
-
-            if all(i.status == "Delivered" for i in all_items):
-                order.status = "Delivered"
-
-            elif any(i.status == "Shipped" for i in all_items):
-                order.status = "Shipped"
-
-            elif any(i.status == "Processing" for i in all_items):
-                order.status = "Processing"
-
-            else:
-                order.status = "Pending"
-
-            order.save()
-
-            messages.success(
-                request,
-                f"Item #{item.id} updated to {new_status}"
-            )
-
-        else:
+        if new_status not in allowed_next:
             messages.error(
                 request,
                 f"Cannot change status from '{item.status}' to '{new_status}'"
             )
-
+            return redirect("cus_order_details", order_id=order.id)
+       
+        if new_status == "Cancelled":
+            item.cancelled_quantity = cancelled_qty + 1
+        elif new_status == "Returned":
+            item.returned_quantity = returned_qty + 1
+        else:
+         
+            item.status = new_status
+      
+        if item.cancelled_quantity == item.quantity:
+            item.status = "Cancelled"
+        elif item.returned_quantity == item.quantity:
+            item.status = "Returned"
+   
+        item.save()
+    
+        all_items = order.items.all()
+        if all(i.status in ["Cancelled", "Returned"] for i in all_items):
+            order.status = "Cancelled"
+        elif any(i.status == "Shipped" for i in all_items):
+            order.status = "Shipped"
+        elif any(i.status == "Processing" for i in all_items):
+            order.status = "Processing"
+        elif all(i.status in ["Delivered", "Cancelled", "Returned"] for i in all_items):
+            order.status = "Delivered"
+        else:
+            order.status = "Pending"
+        order.save()
+        messages.success(
+            request,
+            f"Item #{item.id} updated. Remaining units: {item.quantity - (item.cancelled_quantity or 0) - (item.returned_quantity or 0)}"
+        )
     return redirect("cus_order_details", order_id=order.id)
       
 
@@ -1966,7 +1941,7 @@ def cancel_item(request, item_id):
     if item.status == 'Cancelled':
         messages.info(request, "This item is already fully cancelled")
         return redirect('order_detail', order_id=order.id)
-    remaining = item.quantity - item.returned_quantity - getattr(item, 'cancelled_quantity', 0)
+    remaining = item.quantity - (item.returned_quantity or 0) - (item.cancelled_quantity or 0)
     if remaining <= 0:
         messages.warning(request, "No quantity left to cancel")
         return redirect('order_detail', order_id=order.id)
@@ -1975,7 +1950,7 @@ def cancel_item(request, item_id):
         if cancel_qty <= 0 or cancel_qty > remaining:
             messages.error(request, "Invalid cancel quantity")
             return redirect('order_detail', order_id=order.id)
-        item.cancelled_quantity += cancel_qty
+        item.cancelled_quantity = (item.cancelled_quantity or 0) + cancel_qty
         if item.cancelled_quantity == item.quantity:
             item.status = "Cancelled"
         else:
@@ -1985,6 +1960,18 @@ def cancel_item(request, item_id):
         if variation:
             variation.stock += cancel_qty
             variation.save()
+
+        order_items = order.items.all()
+        new_subtotal = 0
+        for i in order_items:
+            cancelled = i.cancelled_quantity or 0
+            returned = i.returned_quantity or 0
+            final_qty = i.quantity - cancelled - returned
+            new_subtotal += i.price * final_qty
+        order.subtotal = new_subtotal
+        order.total = order.subtotal - order.discount + order.shipping
+        order.save()    
+
         refund_amount = item.price * cancel_qty
         if order.payment_method in ['Wallet', 'Razorpay']:
             credit_wallet(
@@ -2255,24 +2242,35 @@ def razorpay_webhook(request):
             return HttpResponse(status=200)
         except:
             return HttpResponse(status=400)
-
 @login_required
-def download_invoice_pdf(request,order_id):
-    order = Order.objects.get(id=order_id,user=request.user)
+def download_invoice_pdf(request, order_id):
+    order = Order.objects.get(id=order_id, user=request.user)
     order_items = OrderItem.objects.filter(order=order)
+    updated_items = []
+    total = 0
+    for item in order_items:
+        cancelled = item.cancelled_quantity or 0
+        returned = item.returned_quantity or 0
+        remaining = item.quantity - cancelled - returned
+        if remaining > 0:
+            item.remaining_quantity = remaining
+            item.subtotal = remaining * item.price
+            total += item.subtotal
+            updated_items.append(item)
     template_path = 'user/invoice.html'
     context = {
-        'order':order,
-        'order_items':order_items,
-        'address':order.address,
+        'order': order,
+        'order_items': updated_items,
+        'address': order.address,
+        'total': total,
     }
     template = get_template(template_path)
     html = template.render(context)
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f"attachment; filname ='invoice_{order.id}.pdf"
-    pisa_status = pisa.CreatePDF(html,dest=response)
+    response['Content-Disposition'] = f'attachment; filename="invoice_{order.id}.pdf"'
+    pisa_status = pisa.CreatePDF(html, dest=response)
     if pisa_status.err:
-        return HttpResponse('Error generating PDF',status=500)
+        return HttpResponse('Error generating PDF', status=500)
     return response 
 
 @login_required
@@ -2550,3 +2548,103 @@ def download_sales_excel(request):
 def notifications_page(request):
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
     return render(request, 'user/notification_page.html', {'notifications': notifications})
+
+
+def download_shipping_pdf(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="shipping_{order.id}.pdf"'
+    p = canvas.Canvas(response)
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(200, 800, "Shipping Label")
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, 750, "FROM:")
+    p.setFont("Helvetica", 11)
+    p.drawString(50, 730, "Unikart Store")
+    p.drawString(50, 710, "Chennai, Tamil Nadu")
+    p.drawString(50, 690, "Phone: 9876543210")
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, 650, "TO:")
+    p.setFont("Helvetica", 11)
+    p.drawString(50, 630, f"{order.user.username}")
+    
+    if order.address:
+        p.drawString(50, 590, f"{order.address.street}")
+        p.drawString(50, 570, f"{order.address.city}, {order.address.state}")
+        p.drawString(50, 550, f"Pincode: {order.address.pincode}")
+        p.drawString(50, 610, f"{order.user.profile.phone}")
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, 500, f"Order ID: #{order.id}")
+
+    p.showPage()
+    p.save()
+
+    return response    
+
+
+def admin_download_invoice(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="invoice_{order.id}.pdf"'
+
+    p = canvas.Canvas(response)
+
+    # ===== TITLE =====
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(200, 800, "INVOICE")
+
+    # ===== STORE INFO =====
+    p.setFont("Helvetica", 11)
+    p.drawString(50, 770, "Unikart Store")
+    p.drawString(50, 750, "Chennai, Tamil Nadu")
+    p.drawString(50, 730, "Phone: 9876543210")
+
+    # ===== CUSTOMER INFO =====
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(50, 690, "Bill To:")
+
+    p.setFont("Helvetica", 11)
+    p.drawString(50, 670, f"{order.user.username}")
+    p.drawString(50, 650, f"{order.user.email}")
+    p.drawString(50, 630, f"{order.user.profile.phone}")
+
+    if order.address:
+        p.drawString(50, 610, f"{order.address.street}")
+        p.drawString(50, 590, f"{order.address.city}, {order.address.state}")
+        p.drawString(50, 570, f"Pincode: {order.address.pincode}")
+
+    # ===== ORDER INFO =====
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(350, 690, f"Order ID: #{order.id}")
+    p.drawString(350, 670, f"Payment: {order.payment_method}")
+
+    # ===== TABLE HEADER =====
+    y = 520
+    p.setFont("Helvetica-Bold", 11)
+    p.drawString(50, y, "Product")
+    p.drawString(250, y, "Qty")
+    p.drawString(300, y, "Price")
+    p.drawString(380, y, "Total")
+
+    # ===== ITEMS =====
+    y -= 20
+    p.setFont("Helvetica", 10)
+
+    for item in order.items.all():
+        p.drawString(50, y, item.product.name[:25])
+        p.drawString(250, y, str(item.quantity))
+        p.drawString(300, y, f"Rs.{item.price}")
+        p.drawString(380, y, f"Rs.{item.price * item.quantity}")
+        y -= 20
+
+    # ===== TOTAL =====
+    y -= 20
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(300, y, "Total:")
+    p.drawString(380, y, f"Rs.{order.total}")
+
+    p.showPage()
+    p.save()
+
+    return response    

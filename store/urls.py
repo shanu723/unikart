@@ -82,8 +82,11 @@ urlpatterns = [
     path("return-item/<int:item_id>/", views.return_item, name="return_item"),
     path('wallet/',views.wallet_view,name='wallet'),
     path('add_money_to_wallet',views.add_money_to_wallet,name='add_money_to_wallet'),
-    path('admin_wallet_transactions',views.admin_wallet_transactions,name='admin_wallet_transactions'),
+    path('admin_wallet_transactions', views.admin_wallet_transactions, name='admin_wallet_transactions'),
+    path('admin_user_wallet/<int:user_id>', views.admin_user_wallet, name='admin_user_wallet'),
     path('wallet-payment-success/', views.wallet_payment_success, name='wallet_payment_success'),
     path('logout/',views.logout_view,name='logout'),
     path('admin_password_change/', views.admin_change_password, name='admin_change_password'),
+    path('download_shipping_pdf<int:order_id>', views.download_shipping_pdf, name='download_shipping_pdf'),
+    path('admin_download_invoice/<int:order_id>', views.admin_download_invoice, name='admin_download_invoice'),
 ]

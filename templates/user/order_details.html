@@ -7,7 +7,13 @@
 
     <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
-      <h3>Order #{{ order.id }}</h3>
+      <h3>
+        Order #{{ order.id }}
+        {% if is_revised %}
+          <span class="badge bg-warning text-dark">Revised</span>
+        {% endif %}
+      </h3>
+
       <a href="{% url 'download_invoice_pdf' order.id %}" class="btn btn-outline-danger btn-sm" target="_blank">
         <i class="fas fa-file-pdf"></i> Invoice
       </a>
@@ -18,9 +24,13 @@
       <div class="col-md-6">
         <h6 class="fw-bold">Order Info</h6>
         <p><strong>Date:</strong>
-          {% timezone "Asia/Kolkata" %}{{ order.created_at|date:"d M Y, h:i A" }}{% endtimezone %}
+          {% timezone "Asia/Kolkata" %}
+            {{ order.created_at|date:"d M Y, h:i A" }}
+          {% endtimezone %}
         </p>
-        <p><strong>Status:</strong> {{ order_status }}</p>
+        <p><strong>Status:</strong> 
+          <span class="badge bg-dark">{{ order_status }}</span>
+        </p>
         <p><strong>Payment:</strong> {{ order.payment_method|default:"N/A" }}</p>
       </div>
 
@@ -39,6 +49,14 @@
 
     <hr>
 
+    <!-- REVISED ALERT -->
+    {% if is_revised %}
+      <div class="alert alert-warning">
+        ⚠️ This order has been revised due to cancellation/return.  
+        Updated totals are shown below.
+      </div>
+    {% endif %}
+
     <!-- ITEMS -->
     <h5 class="mb-3">Ordered Items</h5>
 
@@ -55,7 +73,7 @@
       </thead>
 
       <tbody>
-        {% for item in order.items.all %}
+        {% for item in items %}
         <tr>
 
           <!-- PRODUCT -->
@@ -63,7 +81,7 @@
 
           <!-- QUANTITY -->
           <td>
-            {{ item.quantity }}
+            {{ item.final_quantity }}
 
             {% if item.returned_quantity > 0 %}
               <br><small class="text-warning">Returned: {{ item.returned_quantity }}</small>
@@ -76,7 +94,9 @@
 
           <!-- PRICE -->
           <td>₹{{ item.price|floatformat:2 }}</td>
-          <td>₹{% widthratio item.price 1 item.quantity %}</td>
+
+          <!-- TOTAL -->
+          <td>₹{{ item.final_total }}</td>
 
           <!-- STATUS -->
           <td>
@@ -101,6 +121,9 @@
             {% elif item.status == "Shipped" %}
               <span class="badge bg-primary">Shipped</span>
 
+            {% elif item.status == "Processing" %}
+              <span class="badge bg-secondary">Processing</span>
+
             {% else %}
               <span class="badge bg-secondary">{{ item.status }}</span>
             {% endif %}
@@ -109,13 +132,11 @@
           <!-- ACTION -->
           <td>
 
-          {% if item.status == "Delivered" or item.status == "Partially Returned" %}
-
-<a href="{% url 'return_item' item.id %}" 
-   class="btn btn-outline-warning btn-sm">
-   Return
-</a>
-
+            {% if item.status == "Delivered" or item.status == "Partially Returned" %}
+              <a href="{% url 'return_item' item.id %}" 
+                 class="btn btn-outline-warning btn-sm">
+                 Return
+              </a>
 
             {% elif item.status == "Return Requested" %}
               <span class="badge bg-info">Requested</span>
@@ -126,14 +147,12 @@
             {% elif item.status == "Cancelled" %}
               <span class="badge bg-danger">Cancelled</span>
 
-            <!-- CANCEL (PARTIAL) -->
+            <!-- FIXED CONDITION -->
             {% elif item.status == "Ordered" or item.status == "Processing" or item.status == "Confirmed" or item.status == "Partially Cancelled" %}
-              
               <a href="{% url 'cancel_item' item.id %}" 
-   class="btn btn-outline-danger btn-sm">
-   Cancel
-</a>
-
+                 class="btn btn-outline-danger btn-sm">
+                 Cancel
+              </a>
 
             {% else %}
               <span class="text-muted">—</span>
