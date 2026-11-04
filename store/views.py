@@ -347,6 +347,7 @@ def admin_change_password(request):
 def category_list(request):
     categories=Category.objects.filter(status=True)
     return render(request,'admin_templates/category.html',{'categories':categories})
+
 @login_required    
 @user_passes_test(lambda u: u.is_superuser)
 def add_category(request):
@@ -354,10 +355,12 @@ def add_category(request):
         name=request.POST.get('name')
         status=request.POST.get('status')=='on'
 
-        if Category.objects.filter(name__iexact=name):
+        if Category.objects.filter(name__iexact=name).exists():
             messages.error(request,"Category Already exists")
             return redirect('add_category')
-
+        elif not status:
+            messages.error(request,"Category status is not selected")
+            return redirect("add_category")
         else:
             Category.objects.create(name=name,status=status)
             messages.success(request,"Category added successfully")
@@ -390,6 +393,7 @@ def delete_category(request,category_id):
     category.status=False
     category.save()
     messages.success(request,"Category deleted successfully")
+    
     return redirect('category')
 
 
@@ -1802,77 +1806,59 @@ def remove_wishlist(request,id):
 def check_out(request):
     user = request.user
     now = timezone.now()
-
     available_coupons = Coupon.objects.filter(
         active=True,
         valid_from__lte=now
     ).exclude(couponusage__user=user)
-
     if request.GET.get('buy_now_item'):
         buy_now_item_id = request.GET.get('buy_now_item')
         request.session['buy_now_item'] = buy_now_item_id
         selected_ids = [buy_now_item_id]
-
     elif request.method == "POST":
         selected_ids = request.POST.getlist('selected_items[]')
         if 'buy_now_item' in request.session:
             del request.session['buy_now_item']
-
     elif request.session.get('buy_now_item'):
         selected_ids = [request.session.get('buy_now_item')]
-
     else:
         selected_ids = list(
             CartItem.objects.filter(user=user).values_list('id', flat=True)
         )
-
     if not selected_ids:
         messages.error(request, "Please select at least one item to checkout.")
         return redirect('cart')
-
     items = CartItem.objects.filter(user=user, id__in=selected_ids)
-
     subtotal = sum(item.unit_price * item.quantity for item in items)
     shipping = 50 if subtotal > 500 else 0
     discount = 0
     coupon = None
-
     coupon_id = request.session.get('coupon_id')
     coupon_cart_items = request.session.get('coupon_cart_items', [])
-
-    if coupon_id and set(map(str, selected_ids)) == set(coupon_cart_items):
+    if coupon_id :
         try:
             coupon = Coupon.objects.get(
                 id=coupon_id,
                 active=True,
                 valid_from__lte=now
             )
-
             if coupon.valid_to and coupon.valid_to < now:
                 raise Coupon.DoesNotExist
-
             discount = coupon.calculate_discount(subtotal)
-
             if coupon.min_purchase_amount and subtotal < coupon.min_purchase_amount:
                 messages.error(request, "Minimum purchase amount not reached for this coupon.")
                 discount = 0
                 request.session.pop('coupon_id', None)
-
         except Coupon.DoesNotExist:
             discount = 0
             request.session.pop('coupon_id', None)
-
     total = subtotal - discount + shipping
-
     for item in items:
         item.line_total = item.unit_price * item.quantity
-
     user_addresses = Address.objects.filter(user=user)
     default_address = user_addresses.filter(is_default=True).first()
     selected_address_id = request.POST.get('selected_address') or (
         default_address.id if default_address else None
     )
-
     context = {
         'items': items,
         'subtotal': subtotal,
@@ -1884,8 +1870,8 @@ def check_out(request):
         'user_addresses': user_addresses,
         'selected_addresses_id': selected_address_id
     }
-
     return render(request, 'checkout.html', context)
+
 def custom_404(request, exception):
     return render(request, '404.html', status=404)
 @csrf_exempt
@@ -1893,16 +1879,14 @@ def create_order(request):
     if request.method == 'POST':
         try:
             user = request.user
-
             selected_ids = request.POST.getlist("selected_items[]")
             cart_items = CartItem.objects.filter(
                 user=request.user,
                 id__in=selected_ids
             )
-
             if not cart_items.exists():
                 return JsonResponse({"error":"Cart is empty"},status = 400)
-              
+            
             total = sum(item.unit_price*item.quantity for item in cart_items)
             shipping = 50 if total>500 else 0
             coupon_id = request.session.get('coupon_id')
@@ -1915,14 +1899,12 @@ def create_order(request):
                     discount = 0
             final_amount = total+shipping-discount
             amount = int(final_amount*100)
-
             client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-           
-
+        
             payment = client.order.create({
                 "amount": amount,  
                 "currency": "INR",
-                "payment_capture": "1",
+                "payment_capture": final_amount,
 
             })
             return JsonResponse({
@@ -1953,6 +1935,7 @@ def cancel_item(request, item_id):
             item.status = "Cancelled"
         else:
             item.status = "Partially Cancelled"
+            
         item.save()
         variation = item.variation
         if variation:
@@ -2025,15 +2008,11 @@ def finalize_order(order,cart_items):
 @login_required(login_url='login')
 @never_cache
 def place_orders(request):
-
     if request.method != 'POST':
         return redirect('shop')
-
     user = request.user
     payment_method = request.POST.get('payment_method')
-
     selected_address = request.POST.get('selected_address')
-
     if selected_address == "new":
         address = Address.objects.create(
             user=user,
@@ -2045,30 +2024,23 @@ def place_orders(request):
         )
     else:
         address = Address.objects.get(id=selected_address, user=user)
-
     selected_item_ids = request.POST.getlist('selected_items[]')
-
     if selected_item_ids:
         cart_items = CartItem.objects.filter(user=user, id__in=selected_item_ids)
     else:
         cart_items = CartItem.objects.filter(user=user)
-
     if not cart_items.exists():
         messages.error(request, "Your cart is empty or no items selected.")
         return redirect('cart')
-
     subtotal = sum(item.unit_price * item.quantity for item in cart_items)
     shipping = 50 if subtotal > 500 else 0
-
     discount = Decimal('0.00')
     coupon = None
     coupon_id = request.session.get("coupon_id")
-
     if coupon_id:
         try:
             coupon = Coupon.objects.get(id=coupon_id, active=True)
             now = timezone.now()
-
             if coupon.valid_from and coupon.valid_from > now:
                 messages.error(request, "Coupon is not active yet")
                 request.session.pop('coupon_id', None)
@@ -2095,9 +2067,7 @@ def place_orders(request):
                         discount = min(discount, coupon.max_discount_amount)
         except Coupon.DoesNotExist:
             request.session.pop("coupon_id", None)
-
     total = max(subtotal + shipping - discount, Decimal('0.00'))          
-
     order = Order.objects.create(
         user=user,
         address=address,
@@ -2115,24 +2085,17 @@ def place_orders(request):
     status="Pending",
     amount=total
     )
-
     if payment_method == "razorpay":
-
         razorpay_payment_id = request.POST.get("razorpay_payment_id")
-
         if razorpay_payment_id:
-
             order.payment_method = "Razorpay"
             order.status = "Processing"
             order.razorpay_payment_id = razorpay_payment_id
             order.save()
-
             payment.transaction_id = razorpay_payment_id
             payment.status = "Success"
             payment.save()
-
             finalize_order(order, cart_items)
-
             if coupon:
                 CouponUsage.objects.create(user=request.user,coupon=coupon)
                 request.session.pop('coupon_id',None)
@@ -2141,7 +2104,6 @@ def place_orders(request):
         else:
             order.delete()
             return redirect('checkout')
-
     elif payment_method == "cod":
         if total >50000:
             messages.error(request,"COD not available for more than 50000")
@@ -2158,15 +2120,12 @@ def place_orders(request):
             request.session.pop('coupon_id',None)
         request.session['order_id'] = order.id
         return redirect('order_confirmation')
-
     elif payment_method == "Wallet":
-
         first_item = cart_items.first()
         if cart_items.count() > 1:
             product_info = f"{first_item.product.name} + {cart_items.count()-1} more"
         else:
             product_info = first_item.product.name
-
         success = debit_wallet(
         user=request.user,
         amount=total,
@@ -2175,7 +2134,6 @@ def place_orders(request):
         order=order 
         )
         if success:
-
             order.payment_method = "Wallet"
             order.status = "Processing"
             order.save()
@@ -2195,14 +2153,12 @@ def place_orders(request):
             messages.error(request, "Insufficient wallet balance")
             return redirect('checkout')
     order.delete()
-
     messages.error(request, "Invalid payment method")
     return redirect('checkout')
 
 
 @csrf_exempt
 def razorpay_webhook(request):
-
     if request.method == "POST":
         client = razorpay.Client(
             auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
@@ -2274,26 +2230,22 @@ def download_invoice_pdf(request, order_id):
 @login_required
 def return_item(request, item_id):
     item = get_object_or_404(OrderItem, id=item_id, order__user=request.user)
-
     if item.status != "Delivered" and item.status != "Partially Returned":
         messages.warning(request, "Only delivered items can be returned")
         return redirect('myorders')
-
     remaining = item.quantity - item.returned_quantity
-
     if remaining <= 0:
         messages.warning(request, "All quantities already returned")
         return redirect('myorders')
-    
+  
     if request.method == 'POST':
-        print("POST DATA:", request.POST)
+        
         reason = request.POST.get('reason')
         qty = int(request.POST.get('return_qty'))
-         
+       
         if qty <= 0 or qty > remaining:
             messages.error(request, "Invalid return quantity")
             return redirect('myorders')
-
         ReturnRequest.objects.create(
             item=item,
             user=request.user,
@@ -2301,13 +2253,10 @@ def return_item(request, item_id):
             reason=reason,
             status='Pending'
         )
-
         item.status = "Return Requested"
         item.save()
-
         messages.success(request, f"Return request sent for {qty} item(s)")
         return redirect('myorders')
-
     return render(request, 'user/return_item.html', {
         'item': item,
         'order': item.order,
@@ -2322,26 +2271,19 @@ def return_requests(request):
 @login_required
 def update_return_status(request, request_id, action):
     return_request = get_object_or_404(ReturnRequest, id=request_id)
-
     order = return_request.item.order
     item = return_request.item
     user = return_request.user
-
     if action == 'accept':
-
         return_request.status = 'Accepted'
         item.status = 'Returned'
         item.save()
-
         variation = item.variation
         if variation:
             variation.stock += item.quantity
             variation.save()
-
         refund_amount = item.price * item.quantity
-
         description = f"Refund for {item.product.name} (Order #{order.id})"
-
         if order.payment_method in ["Wallet", "Razorpay"]:
             credit_wallet(
                 user=user,
@@ -2350,19 +2292,15 @@ def update_return_status(request, request_id, action):
                 source="refund",
                 order=order
             )
-
             Notification.objects.create(
                 user=user,
                 message=f"₹{refund_amount} refunded for {item.product.name} (Order #{order.id})"
             )
-
         if not order.items.exclude(status="Returned").exists():
             order.status = 'Returned'
             order.save()
-
     elif action == 'reject':
         return_request.status = 'Rejected'
-
     return_request.save()
     return redirect('return_requests')
 
@@ -2415,8 +2353,8 @@ def sales_report(request):
         'start_date': start_date,
         'end_date': end_date,
         'filter_type': filter_type,
-        'chart_dates': dates,
-        'chart_revenues': revenues,
+        'chart_dates': json.dumps(dates),
+        'chart_revenues': json.dumps(revenues),
     }
     return render(request, 'admin_templates/sales_report.html', context)
 
@@ -2567,7 +2505,7 @@ def download_shipping_pdf(request, order_id):
     p.drawString(50, 650, "TO:")
     p.setFont("Helvetica", 11)
     p.drawString(50, 630, f"{order.user.username}")
-    
+   
     if order.address:
         p.drawString(50, 590, f"{order.address.street}")
         p.drawString(50, 570, f"{order.address.city}, {order.address.state}")
@@ -2575,32 +2513,22 @@ def download_shipping_pdf(request, order_id):
         p.drawString(50, 610, f"{order.user.profile.phone}")
     p.setFont("Helvetica-Bold", 12)
     p.drawString(50, 500, f"Order ID: #{order.id}")
-
     p.showPage()
     p.save()
-
     return response    
 
 
 def admin_download_invoice(request, order_id):
     order = get_object_or_404(Order, id=order_id)
-
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="invoice_{order.id}.pdf"'
-
     p = canvas.Canvas(response)
-
-    # ===== TITLE =====
     p.setFont("Helvetica-Bold", 16)
     p.drawString(200, 800, "INVOICE")
-
-    # ===== STORE INFO =====
     p.setFont("Helvetica", 11)
     p.drawString(50, 770, "Unikart Store")
     p.drawString(50, 750, "Chennai, Tamil Nadu")
     p.drawString(50, 730, "Phone: 9876543210")
-
-    # ===== CUSTOMER INFO =====
     p.setFont("Helvetica-Bold", 12)
     p.drawString(50, 690, "Bill To:")
 
@@ -2613,38 +2541,29 @@ def admin_download_invoice(request, order_id):
         p.drawString(50, 610, f"{order.address.street}")
         p.drawString(50, 590, f"{order.address.city}, {order.address.state}")
         p.drawString(50, 570, f"Pincode: {order.address.pincode}")
-
-    # ===== ORDER INFO =====
     p.setFont("Helvetica-Bold", 12)
     p.drawString(350, 690, f"Order ID: #{order.id}")
     p.drawString(350, 670, f"Payment: {order.payment_method}")
-
-    # ===== TABLE HEADER =====
     y = 520
     p.setFont("Helvetica-Bold", 11)
     p.drawString(50, y, "Product")
     p.drawString(250, y, "Qty")
     p.drawString(300, y, "Price")
     p.drawString(380, y, "Total")
-
-    # ===== ITEMS =====
+ 
     y -= 20
     p.setFont("Helvetica", 10)
-
     for item in order.items.all():
         p.drawString(50, y, item.product.name[:25])
         p.drawString(250, y, str(item.quantity))
         p.drawString(300, y, f"Rs.{item.price}")
         p.drawString(380, y, f"Rs.{item.price * item.quantity}")
         y -= 20
-
-    # ===== TOTAL =====
+ 
     y -= 20
     p.setFont("Helvetica-Bold", 12)
     p.drawString(300, y, "Total:")
     p.drawString(380, y, f"Rs.{order.total}")
-
     p.showPage()
     p.save()
-
     return response    

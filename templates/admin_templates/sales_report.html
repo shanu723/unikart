@@ -135,8 +135,8 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const labels = {{ chart_dates|safe }};
-  const data = {{ chart_revenues|safe }};
+  const labels = JSON.parse('{{ chart_dates|escapejs }}');
+  const data = JSON.parse('{{ chart_revenues|escapejs }}');
   const ctx = document.getElementById('salesChart').getContext('2d');
 
   new Chart(ctx, {
@@ -148,7 +148,9 @@
         data: data,
         borderWidth: 2,
         tension: 0.3,
-        fill: true
+        fill: true,
+        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+        borderColor: 'rgba(54, 162, 235, 1)'
       }]
     },
     options: {
@@ -157,12 +159,5 @@
       scales: { y: { beginAtZero: true } }
     }
   });
-
-  const startDateInput = document.getElementById('start_date');
-  const endDateInput = document.getElementById('end_date');
-  const filterSelect = document.getElementById('filter_type');
-
-  startDateInput.addEventListener('input', () => { filterSelect.value = ''; });
-  endDateInput.addEventListener('input', () => { filterSelect.value = ''; });
 </script>
 {% endblock %}
