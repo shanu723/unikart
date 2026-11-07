@@ -122,6 +122,13 @@ class CouponForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
+        max_discount = cleaned_data.get('max_discount_amount')
+        min_amount = cleaned_data.get('min_purchase_amount')
+
+        if max_discount is not None and min_amount is not None:
+            if max_discount > min_amount:
+                self.add_error('max_discount_amount',f"Max discount cannot exceed ₹{min_amount}")
+
         valid_from = cleaned_data.get("valid_from")
         valid_to = cleaned_data.get("valid_to")
 
