@@ -74,8 +74,8 @@
         <input type="hidden" name="primary_image_id" id="primaryImageId" value="0">
     </div>
 </div>
-                <!-- ================= VARIATIONS ================= -->
-              <div class="card border-0 shadow-sm mb-4">
+<!-- ================= VARIATIONS ================= -->
+<div class="card border-0 shadow-sm mb-4">
 
     <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-bold">Variations</h5>
@@ -91,77 +91,55 @@
 
         {% for variation in product.variation_set.all %}
 
-        <div class="row variation-row mb-3">
+        <div class="row variation-row mb-3 align-items-end">
+
+            <!-- VARIATION ID -->
+            <input type="hidden"
+                   name="variation_id[]"
+                   value="{{ variation.id }}">
 
             <!-- SIZE -->
             <div class="col-md-3">
-                <label class="form-label">Size</label>
+                <label class="form-label fw-semibold">Size</label>
 
-                <select name="size[]" class="form-control">
-
-                    <option value="32"
-                        {% if variation.size == "32" %}selected{% endif %}>
-                        32 inch
-                    </option>
-
-                    <option value="43"
-                        {% if variation.size == "43" %}selected{% endif %}>
-                        43 inch
-                    </option>
-
-                    <option value="50"
-                        {% if variation.size == "50" %}selected{% endif %}>
-                        50 inch
-                    </option>
-
-                    <option value="60"
-                        {% if variation.size == "60" %}selected{% endif %}>
-                        60 inch
-                    </option>
-
+                <select name="size[]" class="form-control" required>
+                    <option value="32" {% if variation.size == "32" %}selected{% endif %}>32 inch</option>
+                    <option value="43" {% if variation.size == "43" %}selected{% endif %}>43 inch</option>
+                    <option value="50" {% if variation.size == "50" %}selected{% endif %}>50 inch</option>
+                    <option value="60" {% if variation.size == "60" %}selected{% endif %}>60 inch</option>
                 </select>
             </div>
 
-
-            <!-- PRICE -->
+            <!-- ORIGINAL PRICE -->
             <div class="col-md-3">
-                <label class="form-label">Original Price</label>
+                <label class="form-label fw-semibold">Original Price</label>
 
                 <input type="text"
                        name="original_price[]"
                        class="form-control numeric-input"
                        value="{{ variation.original_price }}"
+                       placeholder="Enter price"
                        required>
-
-                <div class="text-danger small warning-msg"
-                     style="display:none;">
-                     Negative values not allowed
-                </div>
+                <div class="text-danger small warning-msg" style="display:none;">Negative values not allowed</div>
             </div>
-
 
             <!-- STOCK -->
             <div class="col-md-3">
-                <label class="form-label">Stock</label>
+                <label class="form-label fw-semibold">Stock</label>
 
                 <input type="text"
                        name="stock[]"
                        class="form-control numeric-input"
                        value="{{ variation.stock }}"
+                       placeholder="Enter stock"
                        required>
-
-                <div class="text-danger small warning-msg"
-                     style="display:none;">
-                     Negative values not allowed
-                </div>
+                <div class="text-danger small warning-msg" style="display:none;">Negative values not allowed</div>
             </div>
 
-
             <!-- STATUS -->
-            <div class="col-md-2 d-flex align-items-end">
-
-                <div class="form-check form-switch">
-
+            <div class="col-md-2">
+                <label class="form-label fw-semibold d-block">Status</label>
+                <div class="form-check form-switch pt-1">
                     <input type="checkbox"
                            name="variation_status[]"
                            class="form-check-input"
@@ -170,35 +148,31 @@
                     <label class="form-check-label ms-2">
                         Active
                     </label>
-
                 </div>
-
             </div>
 
-
-            <!-- REMOVE BUTTON -->
-            <div class="col-md-1 d-flex align-items-end">
-
+            <!-- REMOVE -->
+            <div class="col-md-1">
+                <label class="form-label d-block invisible">&nbsp;</label>
                 <button type="button"
-                        class="btn btn-danger btn-sm"
-                        onclick="this.closest('.variation-row').remove()">
-
-                        Remove
-
+                        class="btn btn-danger btn-sm w-100"
+                        onclick="removeVariation(this)">
+                    Remove
                 </button>
-
             </div>
 
         </div>
 
         {% empty %}
 
-        <!-- If no variations exist -->
-        <div class="row variation-row mb-3">
+        <!-- NO EXISTING VARIATIONS -->
+        <div class="row variation-row mb-3 align-items-end">
+
+            <input type="hidden" name="variation_id[]" value="">
 
             <div class="col-md-3">
-                <label class="form-label">Size</label>
-                <select name="size[]" class="form-control">
+                <label class="form-label fw-semibold">Size</label>
+                <select name="size[]" class="form-control" required>
                     <option value="32">32 inch</option>
                     <option value="43">43 inch</option>
                     <option value="50">50 inch</option>
@@ -207,17 +181,43 @@
             </div>
 
             <div class="col-md-3">
-                <label class="form-label">Original Price</label>
+                <label class="form-label fw-semibold">Original Price</label>
                 <input type="text"
                        name="original_price[]"
-                       class="form-control">
+                       class="form-control numeric-input"
+                       placeholder="Enter price"
+                       required>
+                <div class="text-danger small warning-msg" style="display:none;">Negative values not allowed</div>
             </div>
 
             <div class="col-md-3">
-                <label class="form-label">Stock</label>
+                <label class="form-label fw-semibold">Stock</label>
                 <input type="text"
                        name="stock[]"
-                       class="form-control">
+                       class="form-control numeric-input"
+                       placeholder="Enter stock"
+                       required>
+                <div class="text-danger small warning-msg" style="display:none;">Negative values not allowed</div>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-semibold d-block">Status</label>
+                <div class="form-check form-switch pt-1">
+                    <input type="checkbox"
+                           name="variation_status[]"
+                           class="form-check-input"
+                           checked>
+                    <label class="form-check-label ms-2">Active</label>
+                </div>
+            </div>
+
+            <div class="col-md-1">
+                <label class="form-label d-block invisible">&nbsp;</label>
+                <button type="button"
+                        class="btn btn-danger btn-sm w-100"
+                        onclick="removeVariation(this)">
+                    Remove
+                </button>
             </div>
 
         </div>
@@ -225,9 +225,9 @@
         {% endfor %}
 
     </div>
-
 </div>
-               <!-- ================= HIGHLIGHTS ================= -->
+
+<!-- ================= HIGHLIGHTS ================= -->
 <div class="card border-0 shadow-sm mb-4">
 
     <div class="card-header bg-white border-bottom">
@@ -513,7 +513,6 @@ input[type=number].no-arrows {
     margin-bottom: 15px;
 }
 </style>
-```html
 
 {% block scripts %}
 <script>
@@ -746,105 +745,91 @@ function setPrimary(index) {
     primaryImageIndex.value = index;
 
 }
+
 //================ VARIATION ===========
 
 function addVariation() {
-
-    const container =
-        document.getElementById("variation-container");
+    const container = document.getElementById("variation-container");
 
     const html = `
-
-    <div class="row variation-row mb-3">
+    <div class="row variation-row mb-3 align-items-end">
+        <input type="hidden" name="variation_id[]" value="">
 
         <div class="col-md-3">
-            <label class="form-label">Size</label>
-
-            <select name="size[]" class="form-control">
-
+            <label class="form-label fw-semibold">Size</label>
+            <select name="size[]" class="form-control" required>
                 <option value="32">32 inch</option>
-
                 <option value="43">43 inch</option>
-
                 <option value="50">50 inch</option>
-
                 <option value="60">60 inch</option>
-
             </select>
         </div>
 
-
         <div class="col-md-3">
-
-            <label class="form-label">Original Price</label>
-
+            <label class="form-label fw-semibold">Original Price</label>
             <input type="text"
                    name="original_price[]"
                    class="form-control numeric-input"
+                   placeholder="Enter price"
                    required>
-
+            <div class="text-danger small warning-msg" style="display:none;">Negative values not allowed</div>
         </div>
 
-
         <div class="col-md-3">
-
-            <label class="form-label">Stock</label>
-
+            <label class="form-label fw-semibold">Stock</label>
             <input type="text"
                    name="stock[]"
                    class="form-control numeric-input"
+                   placeholder="Enter stock"
                    required>
-
+            <div class="text-danger small warning-msg" style="display:none;">Negative values not allowed</div>
         </div>
 
-
-        <div class="col-md-2 d-flex align-items-end">
-
-            <div class="form-check form-switch">
-
+        <div class="col-md-2">
+            <label class="form-label fw-semibold d-block">Status</label>
+            <div class="form-check form-switch pt-1">
                 <input type="checkbox"
                        name="variation_status[]"
                        class="form-check-input"
                        checked>
-
-                <label class="form-check-label ms-2">
-                    Active
-                </label>
-
+                <label class="form-check-label ms-2">Active</label>
             </div>
-
         </div>
 
-
-        <div class="col-md-1 d-flex align-items-end">
-
+        <div class="col-md-1">
+            <label class="form-label d-block invisible">&nbsp;</label>
             <button type="button"
-                    class="btn btn-danger btn-sm"
+                    class="btn btn-danger btn-sm w-100"
                     onclick="removeVariation(this)">
-
                 Remove
-
             </button>
-
         </div>
-
     </div>
-
     `;
 
     container.insertAdjacentHTML("beforeend", html);
-
+    bindNumericWarnings();
 }
 
-
-// remove variation
 function removeVariation(button) {
-
     button.closest(".variation-row").remove();
-
 }
 
-
+function bindNumericWarnings() {
+    document.querySelectorAll('.numeric-input').forEach(input => {
+        if (input.dataset.bound) return;
+        input.dataset.bound = "true";
+        const warning = input.parentElement.querySelector('.warning-msg');
+        input.addEventListener('input', function() {
+            if (this.value.startsWith('-')) {
+                if (warning) warning.style.display = 'block';
+                this.value = this.value.replace(/-/g, '');
+            } else {
+                if (warning) warning.style.display = 'none';
+            }
+        });
+    });
+}
 
 // ================= FORM SUBMIT VALIDATION =================
 

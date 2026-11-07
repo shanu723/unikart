@@ -550,7 +550,7 @@ def edit_product(request,product_id):
             product_name=request.POST.get('name','').strip()
             brand=request.POST.get('brand','').strip()
             description=request.POST.get('description','').strip()
-            existing_variations = list(product.variation_set.all())
+            
             existing_highlights = list(product.highlights.all())
             images = request.FILES.getlist('product_images[]')
 
@@ -577,7 +577,7 @@ def edit_product(request,product_id):
                 return redirect('add_product')
 
             if not re.search(r'[A-Za-z0-9]',description):
-                messages.error(request,'DEscription must contain letters')
+                messages.error(request,'Description must contain letters')
                 return redirect('add_product')     
 
             product.name = product_name
@@ -590,7 +590,11 @@ def edit_product(request,product_id):
             product.category=Category.objects.get(id=category_id)
             product.save()
 
+            variation_ids = request.POST.getlist('variation_id[]')
             size_list=request.POST.getlist('size[]')
+            if len(size_list)!=len(set(size_list)):
+                messages.error(request,"Duplicate size are not allowed")
+                return redirect('edit_product',product_id=product.id)
             price_list=request.POST.getlist('original_price[]')
             stock_list = request.POST.getlist('stock[]')
             variation_status = request.POST.getlist('variation_status[]')
@@ -613,9 +617,12 @@ def edit_product(request,product_id):
                 if stock <0:
                     messages.error(request,f"Invalid stock for size {size}")
                     return redirect('edit_product',product_id=product.id)
-
-                if i< len(existing_variations):
-                    variation = existing_variations[i]  
+                variation_id = variation_ids[i]
+                if len(variation_ids)!=len(size_list):
+                    messages.error(request,"Invalid variation data")
+                    return redirect('edit_product',product_id=product_id)
+                if variation_id:
+                    variation = get_object_or_404(Variation,id=variation_id,product=product) 
                     variation.size = size
                     variation.original_price=price
                     variation.stock=stock
